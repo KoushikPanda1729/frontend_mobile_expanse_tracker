@@ -1,0 +1,520 @@
+[
+{
+"d": "01/01/2026",
+"desc": "NEFT*IDFB0080223*IDFB6030*ACME SOFTWARE",
+"amt": 50000.0,
+"bal": 70000.0,
+"type": "in"
+},
+{
+"d": "01/01/2026",
+"desc": "UPI/DR/154335349840/Airtel/YESB/airtel-pre/UPI",
+"amt": 350.0,
+"bal": 69650.0,
+"type": "out"
+},
+{
+"d": "04/01/2026",
+"desc": "UPI/DR/139576827340/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 339.0,
+"bal": 69311.0,
+"type": "out"
+},
+{
+"d": "06/01/2026",
+"desc": "UPI/DR/199817887524/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 1286.0,
+"bal": 68025.0,
+"type": "out"
+},
+{
+"d": "06/01/2026",
+"desc": "UPI/DR/722026593455/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 1242.0,
+"bal": 66783.0,
+"type": "out"
+},
+{
+"d": "08/01/2026",
+"desc": "UPI/DR/536306578165/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 375.0,
+"bal": 66408.0,
+"type": "out"
+},
+{
+"d": "10/01/2026",
+"desc": "UPI/DR/249715982027/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 365.0,
+"bal": 66043.0,
+"type": "out"
+},
+{
+"d": "11/01/2026",
+"desc": "UPI/DR/231171247084/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 1590.0,
+"bal": 64453.0,
+"type": "out"
+},
+{
+"d": "12/01/2026",
+"desc": "UPI/DR/729563178897/Airtel/YESB/airtel-pre/UPI",
+"amt": 275.0,
+"bal": 64178.0,
+"type": "out"
+},
+{
+"d": "13/01/2026",
+"desc": "UPI/DR/884036592425/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 13.0,
+"bal": 64165.0,
+"type": "out"
+},
+{
+"d": "13/01/2026",
+"desc": "UPI/CR/166544904714/FRIEND/HDFC/friend@hdfc/UPI",
+"amt": 4000.0,
+"bal": 68165.0,
+"type": "in"
+},
+{
+"d": "16/01/2026",
+"desc": "UPI/DR/570435156322/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 1493.0,
+"bal": 66672.0,
+"type": "out"
+},
+{
+"d": "17/01/2026",
+"desc": "UPI/DR/602182356871/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 1299.0,
+"bal": 65373.0,
+"type": "out"
+},
+{
+"d": "18/01/2026",
+"desc": "UPI/DR/300980329511/APOLLO P/YESB/apollophar/Payme",
+"amt": 187.0,
+"bal": 65186.0,
+"type": "out"
+},
+{
+"d": "19/01/2026",
+"desc": "UPI/DR/676815177813/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 384.0,
+"bal": 64802.0,
+"type": "out"
+},
+{
+"d": "20/01/2026",
+"desc": "UPI/DR/415460340794/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 33.0,
+"bal": 64769.0,
+"type": "out"
+},
+{
+"d": "20/01/2026",
+"desc": "UPI/DR/561760235452/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 150.0,
+"bal": 64619.0,
+"type": "out"
+},
+{
+"d": "21/01/2026",
+"desc": "UPI/DR/640879277026/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 14.0,
+"bal": 64605.0,
+"type": "out"
+},
+{
+"d": "22/01/2026",
+"desc": "UPI/DR/937852000134/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 422.0,
+"bal": 64183.0,
+"type": "out"
+},
+{
+"d": "22/01/2026",
+"desc": "UPI/DR/485238360207/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 20.0,
+"bal": 64163.0,
+"type": "out"
+},
+{
+"d": "23/01/2026",
+"desc": "UPI/DR/202391881982/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 240.0,
+"bal": 63923.0,
+"type": "out"
+},
+{
+"d": "23/01/2026",
+"desc": "UPI/DR/833138213189/APOLLO P/YESB/apollophar/Payme",
+"amt": 302.0,
+"bal": 63621.0,
+"type": "out"
+},
+{
+"d": "26/01/2026",
+"desc": "UPI/DR/523984687954/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 682.0,
+"bal": 62939.0,
+"type": "out"
+},
+{
+"d": "27/01/2026",
+"desc": "UPI/DR/286210300457/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 316.0,
+"bal": 62623.0,
+"type": "out"
+},
+{
+"d": "01/02/2026",
+"desc": "NEFT*IDFB0080223*IDFB6030*ACME SOFTWARE",
+"amt": 50000.0,
+"bal": 112623.0,
+"type": "in"
+},
+{
+"d": "01/02/2026",
+"desc": "UPI/DR/373754186214/APOLLO P/YESB/apollophar/Payme",
+"amt": 126.0,
+"bal": 112497.0,
+"type": "out"
+},
+{
+"d": "02/02/2026",
+"desc": "UPI/DR/649203575472/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 4755.0,
+"bal": 107742.0,
+"type": "out"
+},
+{
+"d": "02/02/2026",
+"desc": "UPI/DR/540015909378/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 175.0,
+"bal": 107567.0,
+"type": "out"
+},
+{
+"d": "03/02/2026",
+"desc": "UPI/DR/705006206473/Airtel/YESB/airtel-pre/UPI",
+"amt": 359.0,
+"bal": 107208.0,
+"type": "out"
+},
+{
+"d": "04/02/2026",
+"desc": "UPI/DR/264199827455/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 2469.0,
+"bal": 104739.0,
+"type": "out"
+},
+{
+"d": "06/02/2026",
+"desc": "UPI/DR/356231378057/Airtel/YESB/airtel-pre/UPI",
+"amt": 308.0,
+"bal": 104431.0,
+"type": "out"
+},
+{
+"d": "08/02/2026",
+"desc": "UPI/DR/105505850556/Airtel/YESB/airtel-pre/UPI",
+"amt": 316.0,
+"bal": 104115.0,
+"type": "out"
+},
+{
+"d": "08/02/2026",
+"desc": "UPI/DR/506022976513/Airtel/YESB/airtel-pre/UPI",
+"amt": 356.0,
+"bal": 103759.0,
+"type": "out"
+},
+{
+"d": "09/02/2026",
+"desc": "UPI/DR/782686013562/Airtel/YESB/airtel-pre/UPI",
+"amt": 380.0,
+"bal": 103379.0,
+"type": "out"
+},
+{
+"d": "11/02/2026",
+"desc": "UPI/DR/531210330628/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 2630.0,
+"bal": 100749.0,
+"type": "out"
+},
+{
+"d": "11/02/2026",
+"desc": "UPI/DR/540810917131/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 336.0,
+"bal": 100413.0,
+"type": "out"
+},
+{
+"d": "13/02/2026",
+"desc": "UPI/DR/277986137137/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 196.0,
+"bal": 100217.0,
+"type": "out"
+},
+{
+"d": "15/02/2026",
+"desc": "UPI/DR/722771259848/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 132.0,
+"bal": 100085.0,
+"type": "out"
+},
+{
+"d": "16/02/2026",
+"desc": "UPI/DR/128405785248/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 276.0,
+"bal": 99809.0,
+"type": "out"
+},
+{
+"d": "18/02/2026",
+"desc": "UPI/DR/377602675335/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 1608.0,
+"bal": 98201.0,
+"type": "out"
+},
+{
+"d": "19/02/2026",
+"desc": "UPI/DR/225081654955/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 25.0,
+"bal": 98176.0,
+"type": "out"
+},
+{
+"d": "20/02/2026",
+"desc": "UPI/DR/441380470411/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 1083.0,
+"bal": 97093.0,
+"type": "out"
+},
+{
+"d": "20/02/2026",
+"desc": "UPI/DR/920777646003/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 163.0,
+"bal": 96930.0,
+"type": "out"
+},
+{
+"d": "21/02/2026",
+"desc": "UPI/DR/863769118139/APOLLO P/YESB/apollophar/Payme",
+"amt": 305.0,
+"bal": 96625.0,
+"type": "out"
+},
+{
+"d": "22/02/2026",
+"desc": "UPI/DR/497405839480/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 185.0,
+"bal": 96440.0,
+"type": "out"
+},
+{
+"d": "23/02/2026",
+"desc": "UPI/DR/864895066018/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 350.0,
+"bal": 96090.0,
+"type": "out"
+},
+{
+"d": "24/02/2026",
+"desc": "UPI/DR/491559464006/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 39.0,
+"bal": 96051.0,
+"type": "out"
+},
+{
+"d": "25/02/2026",
+"desc": "UPI/DR/770972854850/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 30.0,
+"bal": 96021.0,
+"type": "out"
+},
+{
+"d": "26/02/2026",
+"desc": "UPI/DR/983646026087/UTS-dir/YESB/paytm-8796/Sent",
+"amt": 45.0,
+"bal": 95976.0,
+"type": "out"
+},
+{
+"d": "27/02/2026",
+"desc": "UPI/DR/492958505834/UTS-dir/YESB/paytm-8796/Sent",
+"amt": 53.0,
+"bal": 95923.0,
+"type": "out"
+},
+{
+"d": "01/03/2026",
+"desc": "NEFT*IDFB0080223*IDFB6030*ACME SOFTWARE",
+"amt": 50000.0,
+"bal": 145923.0,
+"type": "in"
+},
+{
+"d": "02/03/2026",
+"desc": "UPI/DR/861040910084/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 630.0,
+"bal": 145293.0,
+"type": "out"
+},
+{
+"d": "03/03/2026",
+"desc": "UPI/DR/187465445125/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 815.0,
+"bal": 144478.0,
+"type": "out"
+},
+{
+"d": "04/03/2026",
+"desc": "UPI/DR/316767342966/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 206.0,
+"bal": 144272.0,
+"type": "out"
+},
+{
+"d": "05/03/2026",
+"desc": "UPI/DR/773881693045/UTS-dir/YESB/paytm-8796/Sent",
+"amt": 50.0,
+"bal": 144222.0,
+"type": "out"
+},
+{
+"d": "07/03/2026",
+"desc": "UPI/DR/192956548863/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 35.0,
+"bal": 144187.0,
+"type": "out"
+},
+{
+"d": "07/03/2026",
+"desc": "UPI/DR/885044013168/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 288.0,
+"bal": 143899.0,
+"type": "out"
+},
+{
+"d": "08/03/2026",
+"desc": "UPI/DR/969447087789/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 465.0,
+"bal": 143434.0,
+"type": "out"
+},
+{
+"d": "09/03/2026",
+"desc": "UPI/DR/536891910522/ZOMATO/HDFC/zomato@hdfc/Sent",
+"amt": 500.0,
+"bal": 142934.0,
+"type": "out"
+},
+{
+"d": "10/03/2026",
+"desc": "UPI/DR/194260775405/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 4044.0,
+"bal": 138890.0,
+"type": "out"
+},
+{
+"d": "10/03/2026",
+"desc": "UPI/DR/241704338575/Airtel/YESB/airtel-pre/UPI",
+"amt": 292.0,
+"bal": 138598.0,
+"type": "out"
+},
+{
+"d": "12/03/2026",
+"desc": "UPI/DR/770642712057/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 1443.0,
+"bal": 137155.0,
+"type": "out"
+},
+{
+"d": "13/03/2026",
+"desc": "UPI/DR/703651898398/RAMESH/SBIN/ramesh@sbi/Sent",
+"amt": 14.0,
+"bal": 137141.0,
+"type": "out"
+},
+{
+"d": "13/03/2026",
+"desc": "UPI/DR/976234501313/Airtel/YESB/airtel-pre/UPI",
+"amt": 254.0,
+"bal": 136887.0,
+"type": "out"
+},
+{
+"d": "13/03/2026",
+"desc": "UPI/CR/596101854034/FRIEND/HDFC/friend@hdfc/UPI",
+"amt": 4000.0,
+"bal": 140887.0,
+"type": "in"
+},
+{
+"d": "15/03/2026",
+"desc": "UPI/DR/335681635341/MUTUAL F/HDFC/groww.iccl/Paid",
+"amt": 4570.0,
+"bal": 136317.0,
+"type": "out"
+},
+{
+"d": "17/03/2026",
+"desc": "UPI/DR/364145479126/UTS-dir/YESB/paytm-8796/Sent",
+"amt": 38.0,
+"bal": 136279.0,
+"type": "out"
+},
+{
+"d": "18/03/2026",
+"desc": "UPI/DR/164987466619/APOLLO P/YESB/apollophar/Payme",
+"amt": 338.0,
+"bal": 135941.0,
+"type": "out"
+},
+{
+"d": "19/03/2026",
+"desc": "UPI/DR/995858661470/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 1456.0,
+"bal": 134485.0,
+"type": "out"
+},
+{
+"d": "20/03/2026",
+"desc": "UPI/DR/676177749979/Airtel/YESB/airtel-pre/UPI",
+"amt": 385.0,
+"bal": 134100.0,
+"type": "out"
+},
+{
+"d": "20/03/2026",
+"desc": "UPI/DR/300903564178/SWIGGY/YESB/swiggy@icici/Sent",
+"amt": 305.0,
+"bal": 133795.0,
+"type": "out"
+},
+{
+"d": "22/03/2026",
+"desc": "UPI/DR/780638469430/Airtel/YESB/airtel-pre/UPI",
+"amt": 285.0,
+"bal": 133510.0,
+"type": "out"
+},
+{
+"d": "25/03/2026",
+"desc": "UPI/DR/717973757898/ARJUN/UTIB/arjun@axl/Sent",
+"amt": 317.0,
+"bal": 133193.0,
+"type": "out"
+},
+{
+"d": "27/03/2026",
+"desc": "UPI/DR/946289800161/UTS-dir/YESB/paytm-8796/Sent",
+"amt": 37.0,
+"bal": 133156.0,
+"type": "out"
+}
+]
