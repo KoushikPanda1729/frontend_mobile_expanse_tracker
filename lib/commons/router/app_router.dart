@@ -1,5 +1,8 @@
 import 'package:expensetracker/pages/add_transaction/add_transaction_page.dart';
 import 'package:expensetracker/pages/alarm/alarm_page.dart';
+import 'package:expensetracker/pages/dues/dues_page.dart';
+import 'package:expensetracker/pages/funds/fund_detail_page.dart';
+import 'package:expensetracker/pages/funds/funds_page.dart';
 import 'package:expensetracker/pages/alarm/alarm_ring_page.dart';
 import 'package:expensetracker/pages/analysis/analysis_page.dart';
 import 'package:expensetracker/pages/export/export_page.dart';
@@ -40,6 +43,21 @@ final goRouter = GoRouter(
       name: 'review',
       path: '/review',
       builder: (context, state) => const ReviewPage(),
+    ),
+    GoRoute(
+      name: 'dues',
+      path: '/dues',
+      builder: (context, state) => const DuesPage(),
+    ),
+    GoRoute(
+      name: 'funds',
+      path: '/funds',
+      builder: (context, state) => const FundsPage(),
+    ),
+    GoRoute(
+      name: 'fundDetail',
+      path: '/funds/:id',
+      builder: (context, state) => FundDetailPage(id: state.pathParameters['id']!),
     ),
     GoRoute(
       name: 'statements',

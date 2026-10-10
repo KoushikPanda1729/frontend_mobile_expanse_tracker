@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
+import 'package:expensetracker/data/dues.dart';
+import 'package:expensetracker/data/funds.dart';
 import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/reminder.dart';
@@ -210,6 +212,18 @@ void showSettingsSheet(BuildContext context, WidgetRef ref) {
               }),
               ListTile(
                 contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.handshake_outlined, color: AppColors.violet100),
+                title: const Text('Money to get & pay'),
+                subtitle: const Text('Who will pay you, and who you need to pay'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  final router = GoRouter.of(context);
+                  Navigator.pop(sheet);
+                  router.push('/dues');
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.delete_sweep_outlined, color: AppColors.red100),
                 title: const Text('Delete my data',
                     style: TextStyle(color: AppColors.red100)),
@@ -352,6 +366,8 @@ const _items = [
       'All transactions, the imported PDFs they came from, and your payee labels'),
   _Item('budgets', 'Budgets', 'Your monthly category limits'),
   _Item('passwords', 'Saved PDF passwords', 'Passwords kept for locked statements'),
+  _Item('dues', 'Money to get & pay', 'Your notes on who pays you and who you pay'),
+  _Item('funds', 'Mutual funds', 'Your funds and their payments'),
   _Item('photo', 'Profile photo', 'Your name and login stay'),
   _Item('phone', 'Files on this phone', 'Downloaded statement PDFs and cached photos'),
 ];
@@ -431,6 +447,11 @@ Future<void> _clearAllData(BuildContext context, WidgetRef ref) async {
       ref.read(filterProvider.notifier).state = const TxnFilter();
     }
     if (picked.contains('budgets')) ref.invalidate(budgetsProvider);
+    if (picked.contains('dues')) ref.invalidate(duesProvider);
+    if (picked.contains('funds')) {
+      ref.invalidate(fundsProvider);
+      ref.invalidate(unassignedProvider);
+    }
     if (picked.contains('passwords')) ref.invalidate(pdfPasswordsProvider);
     // the profile photo is a local copy of the server one
     if (picked.contains('photo') || picked.contains('phone')) ref.invalidate(profileProvider);

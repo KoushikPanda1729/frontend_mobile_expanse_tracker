@@ -2,6 +2,7 @@ import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/ledger.dart' show shortDate;
 import 'package:flutter/cupertino.dart' show CupertinoDatePicker, CupertinoDatePickerMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInputFormatter;
 
 /// Everything the app asks the user for (confirmations, forms, dates, times) opens as a bottom sheet,
 /// never as a centred dialog.
@@ -243,4 +244,116 @@ Future<TimeOfDay?> pickTimeSheet(BuildContext context, {required TimeOfDay initi
       ],
     ),
   );
+}
+
+/// A form field for sheets: a clear heading above, a filled box with readable text and a visible placeholder.
+class SheetField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String? hint, prefix, helper;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? formatters;
+  final TextCapitalization capitalization;
+  final bool autofocus;
+  final int minLines, maxLines;
+  final int? maxLength;
+  final ValueChanged<String>? onChanged;
+
+  const SheetField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.prefix,
+    this.helper,
+    this.keyboardType,
+    this.formatters,
+    this.capitalization = TextCapitalization.none,
+    this.autofocus = false,
+    this.minLines = 1,
+    this.maxLines = 1,
+    this.maxLength,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    OutlineInputBorder border(Color c, double w) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: w));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(label,
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.dark50)),
+        ),
+        TextField(
+          controller: controller,
+          autofocus: autofocus,
+          keyboardType: keyboardType,
+          inputFormatters: formatters,
+          textCapitalization: capitalization,
+          minLines: minLines,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          onChanged: onChanged,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.dark100),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[500]),
+            prefixText: prefix,
+            prefixStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.dark100),
+            helperText: helper,
+            helperStyle: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+            counterText: '',
+            filled: true,
+            fillColor: const Color(0xFFF4F4F8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            border: border(Colors.transparent, 0),
+            enabledBorder: border(Colors.transparent, 0),
+            focusedBorder: border(AppColors.violet100, 1.6),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Two or three big choices in a row; the selected one is filled with its colour.
+class SheetChoice extends StatelessWidget {
+  final List<(String, Color)> options;
+  final int selected;
+  final ValueChanged<int> onSelected;
+  const SheetChoice({super.key, required this.options, required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < options.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onSelected(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: i == selected ? options[i].$2 : const Color(0xFFF4F4F8),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(options[i].$1,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: i == selected ? Colors.white : AppColors.dark50)),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
