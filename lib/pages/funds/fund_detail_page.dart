@@ -116,15 +116,16 @@ class _FundDetailPageState extends ConsumerState<FundDetailPage> {
   }
 
   Widget _header(Fund f) {
-    final gain = f.gain;
-    Widget tile(String label, String v, {Color? color}) => Expanded(
+    final r = f.gain;
+    Widget tile(String label, String v, {String? sub}) => Expanded(
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
               const SizedBox(height: 3),
-              FittedBox(fit: BoxFit.scaleDown, child: Text(v, style: TextStyle(color: color ?? Colors.white, fontSize: 17, fontWeight: FontWeight.w800))),
+              FittedBox(fit: BoxFit.scaleDown, child: Text(v, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800))),
+              if (sub != null) Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
             ]),
           ),
         );
@@ -135,17 +136,31 @@ class _FundDetailPageState extends ConsumerState<FundDetailPage> {
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Invested', style: TextStyle(color: Colors.white70, fontSize: 14)),
-        FittedBox(fit: BoxFit.scaleDown, child: Text(inr(f.netInvested), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800))),
-        if (f.withdrawn > 0)
-          Text('${inr(f.invested)} in, ${inr(f.withdrawn)} taken out', style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+        const Text('Total invested', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        FittedBox(fit: BoxFit.scaleDown, child: Text(inr(f.invested), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800))),
+        if (f.investedTotal == null)
+          const Text('From your bank statements. Add the total from your fund app below.', style: TextStyle(color: Colors.white70, fontSize: 12.5)),
         const SizedBox(height: 12),
         Row(children: [
-          tile('Worth now', f.currentValue == null ? 'Not set' : inr(f.currentValue!)),
+          tile('Returns', r == null ? 'Not set' : '${fundsSign(r)} ${inr(r.abs())}',
+              sub: f.gainPercent == null ? null : '${f.gainPercent}%'),
           const SizedBox(width: 10),
-          tile('Returns', gain == null ? '-' : '${fundsSign(gain)} ${inr(gain.abs())}${f.gainPercent == null ? '' : '  (${f.gainPercent}%)'}'),
+          tile('Current value', f.currentValue == null ? 'Not set' : inr(f.currentValue!)),
         ]),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+        Row(children: [
+          const Icon(Icons.autorenew, size: 16, color: Colors.white70),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              f.monthlySip == null
+                  ? 'No SIP payments from your statements yet'
+                  : 'Monthly SIP ${inr(f.monthlySip!)}  ·  statements show ${inr(f.fromStatements)} in ${f.entryCount} payment${f.entryCount == 1 ? '' : 's'}',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 6),
         InkWell(
           onTap: () => _valueSheet(f),
           child: Padding(
@@ -153,9 +168,11 @@ class _FundDetailPageState extends ConsumerState<FundDetailPage> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.edit_outlined, size: 16, color: Colors.white),
               const SizedBox(width: 6),
-              Text(
-                f.currentValue == null ? 'Add what it is worth today' : 'Update value${f.valueAsOf == null ? '' : ' (set ${_d(f.valueAsOf!)})'}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+              Flexible(
+                child: Text(
+                  f.investedTotal == null && f.currentValue == null ? 'Add invested, current value & SIP' : 'Update invested, value & SIP${f.valueAsOf == null ? '' : ' (set ${_d(f.valueAsOf!)})'}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                ),
               ),
             ]),
           ),
@@ -275,46 +292,107 @@ class _FundDetailPageState extends ConsumerState<FundDetailPage> {
     );
   }
 
+  /// What the fund app shows: the total invested and the current value. The returns and the percentage are
+  /// worked out from those two (the statements only show the payments they cover, so both numbers come from here).
   void _valueSheet(Fund f) {
-    final v = TextEditingController(text: f.currentValue == null ? '' : (f.currentValue! == f.currentValue!.roundToDouble() ? f.currentValue!.toInt().toString() : f.currentValue.toString()));
+    String fmt(double x) => x == x.roundToDouble() ? x.toInt().toString() : x.toStringAsFixed(2);
+    final invested = TextEditingController(text: f.investedTotal == null ? '' : fmt(f.investedTotal!));
+    final current = TextEditingController(text: f.currentValue == null ? '' : fmt(f.currentValue!));
+    final sip = TextEditingController(text: f.monthlySip == null ? '' : fmt(f.monthlySip!));
     showAppSheet<void>(
       context: context,
-      builder: (sheet) => SheetFrame(
-        title: const Text('What is it worth today?'),
-        content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Look it up in your fund app (current value). Update it any time to keep your returns right.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.4)),
-          const SizedBox(height: 14),
-          SheetField(
-            label: 'Current value',
-            controller: v,
-            autofocus: true,
-            hint: '0',
-            prefix: '₹ ',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-          ),
-        ]),
-        actions: [
-          if (f.currentValue != null)
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(sheet);
-                await _run(() => setFundValue(widget.id, null), 'Value cleared');
-              },
-              child: const Text('Clear'),
-            ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.violet100),
-            onPressed: () async {
-              final x = double.tryParse(v.text.trim());
-              if (x == null) return;
-              Navigator.pop(sheet);
-              await _run(() => setFundValue(widget.id, x), 'Value saved');
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (sheet) => StatefulBuilder(
+        builder: (_, setS) {
+          final inv = double.tryParse(invested.text.trim()) ?? f.invested; // until typed, the statement amount stands in
+          final cur = double.tryParse(current.text.trim());
+          final gain = cur == null ? null : cur - inv;
+          final pct = gain != null && inv > 0 ? gain / inv * 100 : null;
+          return SheetFrame(
+            title: const Text('Total invested, current value & SIP'),
+            content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppColors.violet20.withOpacity(0.6), borderRadius: BorderRadius.circular(12)),
+                child: Text('Copy both from your fund app. The returns and the percentage are worked out for you.',
+                    style: TextStyle(color: Colors.grey[800], fontSize: 13, height: 1.4)),
+              ),
+              const SizedBox(height: 16),
+              SheetField(
+                label: 'Total invested',
+                controller: invested,
+                autofocus: true,
+                hint: '0',
+                prefix: '₹ ',
+                onChanged: (_) => setS(() {}),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              ),
+              const SizedBox(height: 16),
+              SheetField(
+                label: 'Current value',
+                controller: current,
+                hint: '0',
+                prefix: '₹ ',
+                onChanged: (_) => setS(() {}),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              ),
+              const SizedBox(height: 16),
+              SheetField(
+                label: 'Monthly SIP',
+                controller: sip,
+                hint: '0',
+                prefix: '₹ ',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              ),
+              if (gain != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: (gain >= 0 ? AppColors.green100 : AppColors.red100).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(children: [
+                    Icon(gain >= 0 ? Icons.trending_up : Icons.trending_down, color: gain >= 0 ? AppColors.green100 : AppColors.red100),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Returns ${gain >= 0 ? '+' : '-'} ${inr(gain.abs())}${pct == null ? '' : '   (${pct.toStringAsFixed(1)}%)'}',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: gain >= 0 ? AppColors.green100 : AppColors.red100),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ]),
+            actions: [
+              if (f.investedTotal != null || f.currentValue != null || f.monthlySip != null)
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(sheet);
+                    await _run(() => setFundValue(widget.id), 'Cleared');
+                  },
+                  child: const Text('Clear'),
+                ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.violet100, minimumSize: const Size(96, 46)),
+                onPressed: () async {
+                  final v = double.tryParse(invested.text.trim());
+                  final c = double.tryParse(current.text.trim());
+                  final m = double.tryParse(sip.text.trim());
+                  if (v == null && c == null && m == null) return;
+                  Navigator.pop(sheet);
+                  await _run(() => setFundValue(widget.id, invested: v, current: c, sip: m), 'Saved');
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

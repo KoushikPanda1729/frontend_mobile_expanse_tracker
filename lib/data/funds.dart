@@ -5,36 +5,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class Fund {
   final String id, name;
-  final double invested, withdrawn, netInvested;
+  /// The total invested to show: what the user typed from the fund app, or what the bank statements add up to.
+  final double invested;
+  final double? investedTotal; // as typed, null until the user types it
+  final double? currentValue; // as typed, null until the user types it
+  final double? gain, gainPercent; // returns and percentage: worked out from the invested and current value
+  final double? monthlySip; // the latest statement payment into the fund
+  final double fromStatements; // what the bank statements show went in
   final int entryCount;
   final DateTime? lastEntry, valueAsOf;
-  final double? currentValue, gain, gainPercent; // set only when the user entered the current value
   const Fund({
     required this.id,
     required this.name,
     required this.invested,
-    required this.withdrawn,
-    required this.netInvested,
-    required this.entryCount,
-    required this.lastEntry,
+    required this.investedTotal,
     required this.currentValue,
-    required this.valueAsOf,
     required this.gain,
     required this.gainPercent,
+    required this.monthlySip,
+    required this.fromStatements,
+    required this.entryCount,
+    required this.lastEntry,
+    required this.valueAsOf,
   });
 
   factory Fund.fromApi(Map<String, dynamic> j) => Fund(
         id: j['id'] as String,
         name: j['name'] as String,
         invested: (j['invested'] as num).toDouble(),
-        withdrawn: (j['withdrawn'] as num).toDouble(),
-        netInvested: (j['netInvested'] as num).toDouble(),
-        entryCount: j['entryCount'] as int,
-        lastEntry: j['lastEntry'] == null ? null : DateTime.parse(j['lastEntry'] as String),
+        investedTotal: (j['investedTotal'] as num?)?.toDouble(),
         currentValue: (j['currentValue'] as num?)?.toDouble(),
-        valueAsOf: j['valueAsOf'] == null ? null : DateTime.parse(j['valueAsOf'] as String),
         gain: (j['gain'] as num?)?.toDouble(),
         gainPercent: (j['gainPercent'] as num?)?.toDouble(),
+        monthlySip: (j['monthlySip'] as num?)?.toDouble(),
+        fromStatements: (j['fromStatements'] as num).toDouble(),
+        entryCount: j['entryCount'] as int,
+        lastEntry: j['lastEntry'] == null ? null : DateTime.parse(j['lastEntry'] as String),
+        valueAsOf: j['valueAsOf'] == null ? null : DateTime.parse(j['valueAsOf'] as String),
       );
 }
 
@@ -57,10 +64,11 @@ class FundDetail {
 
 class FundsData {
   final List<Fund> items;
-  final double netInvested;
-  final double? currentValue, gain; // only over the funds whose value was entered
-  final int valuedFunds;
-  const FundsData(this.items, this.netInvested, this.currentValue, this.gain, this.valuedFunds);
+  final double invested; // total invested across all funds
+  final double? currentValue, returns; // over the funds whose current value was typed
+  final double investedInValued; // what went into those funds, for the overall percentage
+  final double monthlySip; // the monthly SIPs added up
+  const FundsData(this.items, this.invested, this.currentValue, this.returns, this.investedInValued, this.monthlySip);
 }
 
 /// A bank statement payment (category Investment) that is not in any fund yet.
@@ -78,10 +86,11 @@ final fundsProvider = FutureProvider.autoDispose<FundsData>((ref) async {
   final t = j['totals'] as Map<String, dynamic>;
   return FundsData(
     [for (final m in j['items'] as List) Fund.fromApi(m as Map<String, dynamic>)],
-    (t['netInvested'] as num).toDouble(),
+    (t['invested'] as num).toDouble(),
     (t['currentValue'] as num?)?.toDouble(),
-    (t['gain'] as num?)?.toDouble(),
-    t['valuedFunds'] as int,
+    (t['returns'] as num?)?.toDouble(),
+    (t['investedInValued'] as num).toDouble(),
+    (t['monthlySip'] as num).toDouble(),
   );
 });
 
@@ -112,16 +121,18 @@ final unassignedProvider = FutureProvider.autoDispose<List<Unassigned>>((ref) as
   ];
 });
 
-Future<String> addFund(String name, {double? currentValue}) async {
-  final j = await api.post('/funds', body: {'name': name, if (currentValue != null) 'currentValue': currentValue})
+Future<String> addFund(String name, {double? investedTotal}) async {
+  final j = await api.post('/funds', body: {'name': name, if (investedTotal != null) 'investedTotal': investedTotal})
       as Map<String, dynamic>;
   return j['id'] as String;
 }
 
 Future<void> renameFund(String id, String name) => api.patch('/funds/$id', body: {'name': name});
 
-/// What the fund is worth today (null clears it).
-Future<void> setFundValue(String id, double? value) => api.patch('/funds/$id', body: {'currentValue': value});
+/// The total invested and the current value, each saved exactly as typed from the fund app (null clears it).
+/// The returns and the percentage are worked out from these two.
+Future<void> setFundValue(String id, {double? invested, double? current, double? sip}) =>
+    api.patch('/funds/$id', body: {'investedTotal': invested, 'currentValue': current, 'monthlySip': sip});
 
 Future<void> deleteFund(String id) => api.delete('/funds/$id');
 

@@ -89,7 +89,7 @@ class _FundsPageState extends ConsumerState<FundsPage> {
   }
 
   Widget _summary(FundsData d) {
-    Widget tile(String label, String value, {Color? valueColor}) => Expanded(
+    Widget tile(String label, String value, {String? sub}) => Expanded(
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(16)),
@@ -98,12 +98,14 @@ class _FundsPageState extends ConsumerState<FundsPage> {
               const SizedBox(height: 3),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(value, style: TextStyle(color: valueColor ?? Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
               ),
+              if (sub != null) Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
             ]),
           ),
         );
-    final gain = d.gain;
+    final returns = d.returns;
+    final pct = returns != null && d.investedInValued > 0 ? (returns / d.investedInValued * 100) : null;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -112,25 +114,31 @@ class _FundsPageState extends ConsumerState<FundsPage> {
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('You have put in', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        const Text('Total invested', style: TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 2),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(inr(d.netInvested), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
+          child: Text(inr(d.invested), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
         ),
         const SizedBox(height: 12),
         Row(children: [
-          tile('Worth now', d.currentValue == null ? '-' : inr(d.currentValue!)),
+          tile('Returns', returns == null ? '-' : '${fundsSign(returns)} ${inr(returns.abs())}',
+              sub: pct == null ? null : '${pct.toStringAsFixed(1)}%'),
           const SizedBox(width: 10),
-          tile('Returns', gain == null ? '-' : '${fundsSign(gain)} ${inr(gain.abs())}'),
+          tile('Current value', d.currentValue == null ? '-' : inr(d.currentValue!)),
         ]),
         const SizedBox(height: 10),
-        Text(
-          d.valuedFunds == 0
-              ? 'Add what a fund is worth today to see your returns.'
-              : 'Worth and returns count only the ${d.valuedFunds} fund${d.valuedFunds == 1 ? '' : 's'} you gave a value for.',
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
-        ),
+        Row(children: [
+          const Icon(Icons.autorenew, size: 16, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text('Monthly SIP: ${inr(d.monthlySip)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13.5)),
+        ]),
+        if (d.returns == null)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('Open a fund and add its total invested and current value from your fund app.',
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
+          ),
       ]),
     );
   }
@@ -165,8 +173,8 @@ class _FundsPageState extends ConsumerState<FundsPage> {
   }
 
   Widget _fundCard(Fund f) {
-    final gain = f.gain;
-    final up = (gain ?? 0) >= 0;
+    final r = f.gain;
+    final up = (r ?? 0) >= 0;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -193,9 +201,9 @@ class _FundsPageState extends ConsumerState<FundsPage> {
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                _stat('Invested', inr(f.netInvested)),
-                _stat('Worth now', f.currentValue == null ? 'Not set' : inr(f.currentValue!)),
-                _stat('Payments', '${f.entryCount}'),
+                _stat('Invested', inr(f.invested)),
+                _stat('Returns', r == null ? 'Not set' : '${fundsSign(r)} ${inr(r.abs())}'),
+                _stat('Monthly SIP', f.monthlySip == null ? '-' : inr(f.monthlySip!)),
               ]),
             ]),
           ),
@@ -232,7 +240,7 @@ class _FundsPageState extends ConsumerState<FundsPage> {
           ),
           const SizedBox(height: 16),
           SheetField(
-            label: 'What is it worth today? (optional)',
+            label: 'Total invested so far (optional)',
             controller: value,
             hint: '0',
             prefix: '₹ ',
@@ -248,7 +256,7 @@ class _FundsPageState extends ConsumerState<FundsPage> {
               if (name.text.trim().isEmpty) return;
               Navigator.pop(sheet);
               try {
-                await addFund(name.text.trim(), currentValue: double.tryParse(value.text.trim()));
+                await addFund(name.text.trim(), investedTotal: double.tryParse(value.text.trim()));
                 ref.invalidate(fundsProvider);
                 if (mounted) _say('Fund added');
               } catch (e) {
