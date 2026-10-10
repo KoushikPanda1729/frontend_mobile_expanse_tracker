@@ -10,7 +10,6 @@ import 'package:expensetracker/pages/financial_report/app/financial_report.dart'
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/pages/transaction/transaction_sheet.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class TransactionScreen extends ConsumerWidget {

@@ -1,7 +1,6 @@
 import 'package:expensetracker/commons/components/menu_item/app/menu_item.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_icons.dart';
-import 'package:expensetracker/commons/constants/app_images.dart';
 import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/commons/components/profile_avatar/profile_avatar.dart';

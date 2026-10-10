@@ -29,6 +29,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   late String _category = _cats.first.name;
   String _account = 'Bank'; // where the money moved: Bank, Cash or Wallet
   DateTime _date = DateTime.now();
+  // payees the user already labelled ("I know this payee"): their category is filled in when the name matches
+  final Map<String, ({String category, String? label})> _rules = {};
+  String? _ruleHint;
 
   List<Category> get _cats =>
       widget.kind == TxnKind.income ? incomeCategories : expenseCategories;
@@ -49,6 +52,37 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   bool get _isToday => _day(_date) == _day(DateTime.now());
   bool get _isYesterday =>
       _day(_date) == _day(DateTime.now().subtract(const Duration(days: 1)));
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRules();
+  }
+
+  Future<void> _loadRules() async {
+    try {
+      final j = await api.get('/payees') as Map<String, dynamic>;
+      for (final r in j['items'] as List) {
+        final m = r as Map<String, dynamic>;
+        _rules[(m['merchant'] as String).trim().toLowerCase()] =
+            (category: m['category'] as String, label: m['label'] as String?);
+      }
+    } catch (_) {} // offline: no suggestions
+  }
+
+  /// Typing a name you already labelled picks its category.
+  void _onName(String v) {
+    _note = v;
+    final r = _rules[v.trim().toLowerCase()];
+    if (r != null && _cats.any((c) => c.name == r.category)) {
+      setState(() {
+        _category = r.category;
+        _ruleHint = 'Using your saved category for ${v.trim()}';
+      });
+    } else if (_ruleHint != null) {
+      setState(() => _ruleHint = null);
+    }
+  }
 
   @override
   void dispose() {
@@ -83,6 +117,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
             category: cat,
             amount: amt,
             isIncome: widget.kind == TxnKind.income,
+          label: isTransfer ? null : _rules[_note.trim().toLowerCase()]?.label,
           ));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
@@ -272,12 +307,26 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                               ),
                               _label('Name or description'),
                               AlphaNumericTextfieldWidget(
-                                onTextChanged: (v) => _note = v,
+                                onTextChanged: _onName,
                                 labelText: '',
                                 hintText: widget.kind == TxnKind.income
                                     ? 'e.g. salary, from a friend'
                                     : 'e.g. lunch, recharge',
                               ),
+                              if (_ruleHint != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.check_circle, size: 14, color: AppColors.violet100),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(_ruleHint!,
+                                            style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                             _label('Date'),
                             Wrap(

@@ -203,6 +203,7 @@ class LedgerNotifier extends AsyncNotifier<Ledger> {
       'amount': t.amount,
       'isIncome': t.isIncome,
       'mode': t.mode,
+      if (t.label != null) 'label': t.label,
     });
     await refresh();
   }

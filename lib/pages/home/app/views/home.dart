@@ -1,9 +1,7 @@
-import 'package:expensetracker/commons/components/build_spending_categories_card/app/build_spending_categories_card.dart';
 import 'package:expensetracker/commons/components/notification_bar/notification_bar.dart';
 import 'package:expensetracker/commons/components/month_pill/month_pill.dart';
 import 'package:expensetracker/commons/components/transaction_card/app/transaction_card.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
-import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:expensetracker/data/analysis.dart' show weekdayNames;
 import 'package:expensetracker/data/analytics.dart';
@@ -430,18 +428,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final labels = <int, String>{};
     final titles = <int, String>{};
     double minX, maxX;
-    // chart numbers come from GET /analytics/series; until they load (or for sample data) they are added up here
-    const live = true;
+    // chart numbers come from GET /analytics/series; until they load they are added up here
     if (isDay) {
-      final srv = live
-          ? ref
-              .watch(seriesProvider((
-                'day',
-                ymd(DateTime(ref0.year, ref0.month, 1)),
-                ymd(DateTime(ref0.year, ref0.month, lastDay)),
-              )))
-              .valueOrNull
-          : null;
+      final srv = ref
+          .watch(seriesProvider((
+            'day',
+            ymd(DateTime(ref0.year, ref0.month, 1)),
+            ymd(DateTime(ref0.year, ref0.month, lastDay)),
+          )))
+          .valueOrNull;
       final spend = <int, double>{};
       if (srv != null) {
         for (final p in srv) {
@@ -461,9 +456,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       minX = 1;
       maxX = lastDay.toDouble();
     } else if (_filter == 'Week') {
-      final srv = live
-          ? ref.watch(seriesProvider(('week', null, null))).valueOrNull
-          : null;
+      final srv = ref.watch(seriesProvider(('week', null, null))).valueOrNull;
       final useSrv = srv != null && srv.isNotEmpty;
       final first = useSrv ? srv.first.$1 : ledger.all.first.date;
       final last = useSrv ? srv.last.$1 : ledger.all.last.date;
@@ -487,9 +480,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       minX = 0;
       maxX = (n < 1 ? 1 : n).toDouble();
     } else {
-      final srv = live
-          ? ref.watch(seriesProvider(('month', null, null))).valueOrNull
-          : null;
+      final srv = ref.watch(seriesProvider(('month', null, null))).valueOrNull;
       final useSrv = srv != null && srv.isNotEmpty;
       final keys = useSrv
           ? [for (final p in srv) p.$1.year * 100 + p.$1.month]

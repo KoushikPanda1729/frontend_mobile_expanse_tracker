@@ -5,7 +5,6 @@ import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:flutter/material.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
-import 'package:expensetracker/commons/constants/app_images.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class NotificationBar extends StatelessWidget {

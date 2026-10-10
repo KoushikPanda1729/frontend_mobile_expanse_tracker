@@ -45,6 +45,19 @@ class _StatementsPageState extends ConsumerState<StatementsPage> {
     }
   }
 
+  Future<void> _reread(StatementInfo s) async {
+    setState(() => _busyId = s.id);
+    try {
+      final n = await rereadStatement(s.id);
+      await ref.read(ledgerProvider.notifier).refresh();
+      _say(n == 0 ? 'Nothing was missing. All details are already saved.' : 'Filled in details for $n transactions.');
+    } catch (e) {
+      _say(_err(e));
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   Future<void> _download(StatementInfo s) async {
     setState(() => _busyId = s.id);
     try {
@@ -295,6 +308,17 @@ class _StatementsPageState extends ConsumerState<StatementsPage> {
                   icon: const Icon(Icons.delete_outline, color: AppColors.red100),
                 ),
               ],
+            ),
+          if (!busy)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 4)),
+                onPressed: () => _reread(s),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh details from this PDF', style: TextStyle(fontSize: 12.5)),
+              ),
             ),
         ],
       ),

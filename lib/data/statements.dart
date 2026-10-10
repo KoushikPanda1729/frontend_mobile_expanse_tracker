@@ -52,6 +52,13 @@ final statementsProvider = FutureProvider.autoDispose<List<StatementInfo>>((ref)
   ];
 });
 
+/// Reads the stored PDF again and fills in details older imports did not save (UPI id, bank, reference).
+/// Returns how many rows were updated.
+Future<int> rereadStatement(String id) async {
+  final j = await api.post('/statements/$id/reread') as Map<String, dynamic>;
+  return j['updated'] as int;
+}
+
 /// DELETE /statements/:id (also removes the transactions imported from it).
 Future<void> deleteStatement(String id) => api.delete('/statements/$id');
 

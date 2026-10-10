@@ -70,6 +70,7 @@ class ManualMatch {
 /// A row the user already has that differs from what the statement says. Accept = take the bank's version.
 class StatementChange {
   final String id; // the transaction
+  final String signature; // identifies the bank's version, used to remember "keep mine"
   final List<String> fields; // what differs: date, amount, name, category
   final bool isIncome;
   final DateTime yoursDate, bankDate;
@@ -77,6 +78,7 @@ class StatementChange {
   final double yoursAmount, bankAmount;
   const StatementChange({
     required this.id,
+    required this.signature,
     required this.fields,
     required this.isIncome,
     required this.yoursDate,
@@ -94,6 +96,7 @@ class StatementChange {
     final b = j['bank'] as Map<String, dynamic>;
     return StatementChange(
       id: j['id'] as String,
+      signature: j['signature'] as String,
       fields: [for (final f in j['fields'] as List) f as String],
       isIncome: j['isIncome'] as bool,
       yoursDate: DateTime.parse(y['date'] as String),
@@ -196,4 +199,12 @@ Future<UploadResult> uploadStatement(PlatformFile f,
       }) as Map<String, dynamic>;
   return UploadResult(j['added'] as int, j['skippedDuplicates'] as int,
       (j['merged'] as int?) ?? 0, (j['applied'] as int?) ?? 0);
+}
+
+/// "Keep my version": remember it, so these rows are not offered again unless the bank's side changes.
+Future<void> dismissChanges(List<StatementChange> changes) async {
+  if (changes.isEmpty) return;
+  await api.post('/statements/dismiss-changes', body: {
+    'items': [for (final c in changes) {'id': c.id, 'signature': c.signature}],
+  });
 }

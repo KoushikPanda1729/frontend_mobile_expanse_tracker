@@ -99,11 +99,16 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   Future<void> _confirm() async {
     setState(() => _busy = true);
     try {
+      // rows the user left unticked are "keep mine": remember that too
+      final kept = [for (final c in _found!.changes) if (!_applyIds.contains(c.id)) c];
       final r = await uploadStatement(_file!,
           password: _typedPassword,
           savePassword: _remember,
           merge: [for (final m in _found!.matches) if (_accepted.contains(m.manualId)) m],
           apply: _applyIds.toList());
+      try {
+        await dismissChanges(kept);
+      } catch (_) {}
       await ref.read(ledgerProvider.notifier).refresh();
       if (!mounted) return;
       ref.read(monthProvider.notifier).state = null;
@@ -513,11 +518,15 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   bool _primaryDisabled(StatementPreview p) =>
       !_keepingMine(p) && _applyIds.isEmpty && (p.alreadyUploaded || p.newCount == 0);
 
-  void _primaryAction(StatementPreview p) {
+  Future<void> _primaryAction(StatementPreview p) async {
     if (_keepingMine(p)) {
-      // nothing is changed: your rows stay exactly as they are
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No changes made. Your version is kept.')));
-      context.canPop() ? context.pop() : context.go('/');
+      // nothing is changed, and the app remembers it: these rows are not offered again
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await dismissChanges(p.changes);
+      } catch (_) {} // not remembering is harmless: they would just be offered again
+      messenger.showSnackBar(const SnackBar(content: Text('Your version is kept. These rows will not be offered again.')));
+      if (mounted) context.canPop() ? context.pop() : context.go('/');
       return;
     }
     _confirm();
@@ -698,7 +707,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       icon: Icons.compare_arrows,
       tint: AppColors.yellow100,
       title: '$n change${n == 1 ? '' : 's'} from the bank',
-      hint: "Tick to use the bank's version. Unticked rows stay as you have them.",
+      hint: "Tick to use the bank's version. Unticked rows stay as yours and are not offered again.",
       total: n,
       selected: _applyIds,
       onToggleAll: () => setState(() {
