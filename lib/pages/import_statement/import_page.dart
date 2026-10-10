@@ -481,6 +481,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             onPressed: () => context.pushReplacement('/analysis'),
           ),
           TextButton(
+            onPressed: () => context.pushReplacement('/review'),
+            child: const Text('Check payments you may not recognise'),
+          ),
+          TextButton(
             onPressed: () {
               ref.read(tabProvider.notifier).state = 1;
               context.go('/');

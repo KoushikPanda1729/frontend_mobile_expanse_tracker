@@ -2,6 +2,7 @@ import 'package:expensetracker/commons/components/button/app/solid_button_widget
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
+import 'package:expensetracker/pages/review/review_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,7 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
   final saved = t.id != null;
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     backgroundColor: Colors.white,
     shape: _shape,
     builder: (sheet) {
@@ -38,7 +40,8 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-          child: Column(
+          child: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -56,7 +59,20 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
               row('Date', '${shortDate(t.date)} ${t.date.year}'),
               row('Type', t.isIncome ? 'Income' : 'Expense'),
               if (t.mode.isNotEmpty) row('Mode', t.mode),
+              if (t.phone != null) copyRow(sheet, 'Phone', t.phone!),
+              if (t.upiId != null && t.phone == null) copyRow(sheet, 'UPI id', t.upiId!),
+              if (t.bank != null) row('Bank', t.bank!),
+              if (t.ref != null) copyRow(sheet, 'Reference', t.ref!),
               const SizedBox(height: 16),
+              if (saved && !t.isIncome && t.mode != 'Manual')
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheet);
+                    showLabelPayeeSheet(context, ref, t.merchant);
+                  },
+                  icon: const Icon(Icons.person_search_outlined, size: 18),
+                  label: Text('Who is ${t.merchant}? Label this payee'),
+                ),
               if (!saved)
                 Text('Sample data. Import a statement or add a transaction to edit.',
                     style: TextStyle(color: Colors.grey[600], fontSize: 13))
@@ -113,6 +129,7 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                   ],
                 ),
             ],
+          ),
           ),
         ),
       );

@@ -47,7 +47,10 @@ class Txn {
   final Category category;
   final double amount;
   final bool isIncome;
-  final String? ref; // bank reference, used to skip duplicates on import
+  final String? ref; // bank reference number
+  final String? upiId; // UPI id or phone number of the other side
+  final String? bank; // bank code of the other side
+  final String? description; // what the bank printed
 
   const Txn({
     this.id,
@@ -58,6 +61,9 @@ class Txn {
     required this.amount,
     required this.isIncome,
     this.ref,
+    this.upiId,
+    this.bank,
+    this.description,
   });
 
   factory Txn.fromApi(Map<String, dynamic> j) => Txn(
@@ -68,7 +74,14 @@ class Txn {
         category: categoryByName(j['category'] as String),
         amount: (j['amount'] as num).toDouble(),
         isIncome: j['isIncome'] as bool,
+        ref: j['ref'] as String?,
+        upiId: j['upiId'] as String?,
+        bank: j['bank'] as String?,
+        description: j['description'] as String?,
       );
+
+  /// The UPI id when it is a mobile number.
+  String? get phone => upiId != null && RegExp(r'^[6-9]\d{9}$').hasMatch(upiId!) ? upiId : null;
 
   double get signed => isIncome ? amount : -amount;
 }

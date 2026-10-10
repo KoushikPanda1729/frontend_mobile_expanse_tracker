@@ -10,6 +10,7 @@ import 'package:expensetracker/data/analytics.dart';
 import 'package:expensetracker/pages/transaction/transaction_sheet.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/reminder.dart';
+import 'package:expensetracker/data/review.dart';
 import 'package:expensetracker/data/settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -112,6 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     expense: Ledger.expense(txns),
                   ),
                   _nudge(ledger),
+                  if (ledger.all.isNotEmpty) _reviewBanner(),
                   const SizedBox(height: 28),
                   if (ledger.all.isEmpty)
                     _emptyState()
@@ -210,6 +212,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (l.all.isEmpty) return local;
     final end = key > 0 ? DateTime(key ~/ 100, key % 100 + 1, 0) : l.all.last.date;
     return ref.watch(balanceProvider(ymd(end))).valueOrNull ?? local;
+  }
+
+  /// "N payments to check": shown when the review has something the app cannot explain.
+  Widget _reviewBanner() {
+    final r = ref.watch(reviewProvider).valueOrNull;
+    if (r == null || r.count == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Material(
+        color: AppColors.yellow100.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/review'),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: AppColors.violet100),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${r.count} payment${r.count == 1 ? '' : 's'} to check',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text('${inr(r.unknownSent)} went to people you have not labelled',
+                          style: TextStyle(color: Colors.grey[700], fontSize: 12.5)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.violet100),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// A new account has no data yet: offer the two ways to add some.

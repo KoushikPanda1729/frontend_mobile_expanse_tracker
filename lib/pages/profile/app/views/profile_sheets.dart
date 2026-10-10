@@ -348,7 +348,7 @@ class _Item {
 
 const _items = [
   _Item('transactions', 'Transactions and statements',
-      'All transactions, and the imported PDFs they came from'),
+      'All transactions, the imported PDFs they came from, and your payee labels'),
   _Item('budgets', 'Budgets', 'Your monthly category limits'),
   _Item('passwords', 'Saved PDF passwords', 'Passwords kept for locked statements'),
   _Item('photo', 'Profile photo', 'Your name and login stay'),

@@ -100,6 +100,17 @@ class ProfileScreen extends ConsumerWidget {
                             color: AppColors.dark100.withOpacity(0.1),
                           ),
                           MenuItem(
+                            icon: AppIcons.warningIcon,
+                            title: 'Check your money',
+                            subtitle: 'Payments you may not recognise',
+                            iconColor: AppColors.violet100,
+                            onTap: () => context.push('/review'),
+                          ),
+                          Divider(
+                            thickness: 1,
+                            color: AppColors.dark100.withOpacity(0.1),
+                          ),
+                          MenuItem(
                             icon: AppIcons.file,
                             title: 'My Statements',
                             subtitle: 'Download or delete imported PDFs',
