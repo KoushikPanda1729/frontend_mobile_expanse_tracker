@@ -150,6 +150,7 @@ Future<void> scheduleMonthEnd(ReminderState r) async {
 /// Fires the alarm right now so the user can see what it looks like.
 Future<void> sendTestAlarm(ReminderState r) async {
   try {
+    await _askPermission(); // a test needs the permission too, even before the alarm is turned on
     await _plugin.show(99, 'Statement time', _body(r, DateTime.now()),
         _details(r.loud),
         payload: '/import');
@@ -249,6 +250,23 @@ class ReminderNotifier extends StateNotifier<ReminderState> {
   }
 
   /// Change when/how the alarm rings; reschedules if it is on.
+  /// Applies a whole edited alarm at once (the alarm page's Save button).
+  /// Returns false when the notification permission was refused.
+  Future<bool> apply(ReminderState d) async {
+    if (d.enabled) {
+      if (!state.enabled && !await _askPermission()) return false;
+      state = d;
+      await scheduleMonthEnd(state);
+    } else {
+      try {
+        await _plugin.cancelAll();
+      } catch (_) {}
+      state = d;
+    }
+    await _save();
+    return true;
+  }
+
   Future<void> update({int? hour, int? minute, int? dayMode, int? day, bool? loud}) async {
     state = state.copyWith(
         hour: hour, minute: minute, dayMode: dayMode, day: day, loud: loud);

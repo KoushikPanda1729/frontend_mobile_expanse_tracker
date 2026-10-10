@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_info.dart';
@@ -9,32 +10,83 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// Settings screen for the monthly "upload your bank statement" alarm.
-class AlarmPage extends ConsumerWidget {
+/// Changes are edited here freely and only take effect when the user presses Save.
+class AlarmPage extends ConsumerStatefulWidget {
   const AlarmPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final r = ref.watch(reminderProvider);
-    final n = ref.read(reminderProvider.notifier);
+  ConsumerState<AlarmPage> createState() => _AlarmPageState();
+}
+
+class _AlarmPageState extends ConsumerState<AlarmPage> {
+  late ReminderState _d = ref.read(reminderProvider); // the alarm as edited on screen
+  bool _saving = false;
+
+  bool _same(ReminderState a, ReminderState b) =>
+      a.enabled == b.enabled &&
+      a.hour == b.hour &&
+      a.minute == b.minute &&
+      a.dayMode == b.dayMode &&
+      a.day == b.day &&
+      a.loud == b.loud;
+
+  bool get _dirty => !_same(_d, ref.read(reminderProvider));
+
+  void _edit({bool? enabled, int? hour, int? minute, int? dayMode, int? day, bool? loud}) {
+    setState(() => _d = _d.copyWith(
+        enabled: enabled, hour: hour, minute: minute, dayMode: dayMode, day: day, loud: loud));
+  }
+
+  Future<void> _save(DateTime now) async {
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await ref.read(reminderProvider.notifier).apply(_d);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (!ok) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Allow notifications for this app in the phone Settings, then save again')));
+      return;
+    }
+    final next = nextAlarm(_d, now);
+    messenger.showSnackBar(SnackBar(
+        content: Text(next == null
+            ? 'Alarm turned off'
+            : 'Alarm saved. Next: ${weekdayNames[next.weekday - 1]}, ${shortDate(next)}, '
+                '${TimeOfDay(hour: _d.hour, minute: _d.minute).format(context)}')));
+    setState(() {}); // the Save button now reads "Saved"
+  }
+
+  /// Leaving with unsaved changes asks first.
+  Future<void> _leave() async {
+    if (_dirty) {
+      final discard = await confirmSheet(context,
+          title: 'Discard changes?',
+          message: 'You changed the alarm but did not save it.',
+          confirmLabel: 'Discard',
+          destructive: true);
+      if (!discard || !mounted) return;
+    }
+    if (mounted) context.canPop() ? context.pop() : context.go('/');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // the alarm is loaded from storage a moment after the app starts: follow it until the user edits
+    ref.listen<ReminderState>(reminderProvider, (prev, next) {
+      if (prev != null && _same(_d, prev)) setState(() => _d = next);
+    });
+    final r = _d;
     final now = DateTime.now();
     final next = nextAlarm(r, now);
     final time = TimeOfDay(hour: r.hour, minute: r.minute).format(context);
+    final dirty = _dirty;
 
-    Future<void> toggle(bool on) async {
-      if (!on) return n.disable();
-      final ok = await n.enable();
-      if (!ok && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Allow notifications for this app in iPhone Settings')));
-      }
-    }
+    void toggle(bool on) => _edit(enabled: on);
 
     Future<void> pickTime() async {
-      final t = await pickTimeSheet(
-        context,
-        initial: TimeOfDay(hour: r.hour, minute: r.minute),
-      );
-      if (t != null) n.update(hour: t.hour, minute: t.minute);
+      final t = await pickTimeSheet(context, initial: TimeOfDay(hour: r.hour, minute: r.minute));
+      if (t != null) _edit(hour: t.hour, minute: t.minute);
     }
 
     String when() => switch (r.dayMode) {
@@ -107,8 +159,27 @@ class AlarmPage extends ConsumerWidget {
           ),
         );
 
-    return Scaffold(
+    return PopScope(
+      canPop: !dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
+      // the Save button stays in view while the page scrolls
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SolidButtonWidget(
+            label: _saving
+                ? 'Saving...'
+                : dirty
+                    ? (r.enabled ? 'Save alarm' : 'Save (alarm off)')
+                    : 'Saved',
+            onPressed: _saving || !dirty ? null : () => _save(now),
+          ),
+        ),
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -117,8 +188,7 @@ class AlarmPage extends ConsumerWidget {
         centerTitle: true,
         title: const Text('Month-end alarm',
             style: TextStyle(fontWeight: FontWeight.w700)),
-        leading: BackButton(
-            onPressed: () => context.canPop() ? context.pop() : context.go('/')),
+        leading: BackButton(onPressed: _leave),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
@@ -190,7 +260,7 @@ class AlarmPage extends ConsumerWidget {
 
           label('REPEATS'),
           segmented(['Last day', '1st of month', 'Pick a day'], r.dayMode,
-              (i) => n.update(dayMode: i)),
+              (i) => _edit(dayMode: i)),
           if (r.dayMode == 1)
             Padding(
               padding: const EdgeInsets.only(top: 10, left: 4),
@@ -205,7 +275,7 @@ class AlarmPage extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton.filledTonal(
-                    onPressed: r.day > 1 ? () => n.update(day: r.day - 1) : null,
+                    onPressed: r.day > 1 ? () => _edit(day: r.day - 1) : null,
                     icon: const Icon(Icons.remove),
                   ),
                   SizedBox(
@@ -222,7 +292,7 @@ class AlarmPage extends ConsumerWidget {
                     ),
                   ),
                   IconButton.filledTonal(
-                    onPressed: r.day < 28 ? () => n.update(day: r.day + 1) : null,
+                    onPressed: r.day < 28 ? () => _edit(day: r.day + 1) : null,
                     icon: const Icon(Icons.add),
                   ),
                 ],
@@ -231,7 +301,7 @@ class AlarmPage extends ConsumerWidget {
 
           label('STYLE'),
           segmented(['Alarm  (sound)', 'Quiet  (banner)'], r.loud ? 0 : 1,
-              (i) => n.update(loud: i == 0)),
+              (i) => _edit(loud: i == 0)),
           Padding(
             padding: const EdgeInsets.only(top: 10, left: 4),
             child: Text(
@@ -313,6 +383,7 @@ class AlarmPage extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
