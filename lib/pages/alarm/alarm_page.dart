@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_info.dart';
 import 'package:expensetracker/data/analysis.dart' show weekdayNames;
@@ -29,9 +30,9 @@ class AlarmPage extends ConsumerWidget {
     }
 
     Future<void> pickTime() async {
-      final t = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay(hour: r.hour, minute: r.minute),
+      final t = await pickTimeSheet(
+        context,
+        initial: TimeOfDay(hour: r.hour, minute: r.minute),
       );
       if (t != null) n.update(hour: t.hour, minute: t.minute);
     }

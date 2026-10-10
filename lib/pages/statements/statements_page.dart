@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
@@ -56,9 +57,9 @@ class _StatementsPageState extends ConsumerState<StatementsPage> {
   }
 
   Future<void> _delete(StatementInfo s) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAppSheet<bool>(
       context: context,
-      builder: (d) => AlertDialog(
+      builder: (d) => SheetFrame(
         title: const Text('Delete statement?'),
         content: Text(
             '${s.fileName} and the ${s.transactionCount} transactions imported from it will be removed.'),

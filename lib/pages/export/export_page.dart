@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -62,11 +63,11 @@ class _ExportPageState extends ConsumerState<ExportPage> {
   Future<void> _pickCustom(Ledger l) async {
     final lo = l.all.first.date, hi = l.all.last.date;
     final cur = _custom ?? _range(l);
-    final r = await showDateRangePicker(
-      context: context,
-      firstDate: lo,
-      lastDate: hi,
-      initialDateRange: DateTimeRange(
+    final r = await pickRangeSheet(
+      context,
+      first: lo,
+      last: hi,
+      initial: DateTimeRange(
         start: cur.start.isBefore(lo) ? lo : cur.start,
         end: cur.end.isAfter(hi) ? hi : cur.end,
       ),

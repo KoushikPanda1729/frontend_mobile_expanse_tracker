@@ -1,4 +1,5 @@
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/components/notification_bar/notification_bar.dart';
 import 'package:expensetracker/commons/components/text_field/app/views/alpha_neumeric_textfield_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
@@ -26,7 +27,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   final _amount = TextEditingController();
   String _note = '', _to = '';
   late String _category = _cats.first.name;
-  String _account = 'Account';
+  String _account = 'Bank'; // where the money moved: Bank, Cash or Wallet
   DateTime _date = DateTime.now();
 
   List<Category> get _cats =>
@@ -77,7 +78,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
       await ref.read(ledgerProvider.notifier).add(Txn(
             date: _day(_date),
             merchant: who.trim().isEmpty ? cat.name : who.trim(),
-            mode: 'Manual',
+            // Cash and Wallet payments are never on a bank statement, so the import does not try to match them
+          mode: _account == 'Bank' ? 'Manual' : _account,
             category: cat,
             amount: amt,
             isIncome: widget.kind == TxnKind.income,
@@ -94,11 +96,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2025),
-      lastDate: DateTime.now(),
+    final d = await pickDateSheet(
+      context,
+      initial: _date,
+      first: DateTime(2020),
+      last: DateTime.now(),
     );
     if (d != null) setState(() => _date = d);
   }
@@ -268,7 +270,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                                     ),
                                 ],
                               ),
-                              _label('Description'),
+                              _label('Name or description'),
                               AlphaNumericTextfieldWidget(
                                 onTextChanged: (v) => _note = v,
                                 labelText: '',
@@ -304,14 +306,33 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                                 ),
                               ],
                             ),
-                            _label('Account'),
+                            _label(widget.kind == TxnKind.income ? 'Received in' : 'Paid from'),
                             Wrap(
                               spacing: 8,
                               children: [
-                                for (final a in const ['Account', 'Wallet', 'Cash'])
-                                  _chip(a, _account == a,
-                                      () => setState(() => _account = a)),
+                                for (final a in const [
+                                  ('Bank', Icons.account_balance_outlined),
+                                  ('Cash', Icons.payments_outlined),
+                                  ('Wallet', Icons.account_balance_wallet_outlined),
+                                ])
+                                  _chip(
+                                    a.$1 == 'Bank' ? 'Bank account' : a.$1,
+                                    _account == a.$1,
+                                    () => setState(() => _account = a.$1),
+                                    leading: Icon(a.$2,
+                                        size: 15,
+                                        color: _account == a.$1 ? Colors.white : AppColors.dark50),
+                                  ),
                               ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _account == 'Bank'
+                                    ? 'Matched with your bank statement when you import it.'
+                                    : 'Not on a bank statement, so it is never matched or merged.',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12.5),
+                              ),
                             ),
                             const SizedBox(height: 12),
                           ],

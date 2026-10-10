@@ -93,6 +93,9 @@ class Txn {
   String? get phone => upiId != null && RegExp(r'^[6-9]\d{9}$').hasMatch(upiId!) ? upiId : null;
 
   double get signed => isIncome ? amount : -amount;
+
+  /// Cash and wallet entries are spending, but they never move the bank account's balance.
+  bool get inBank => mode != 'Cash' && mode != 'Wallet';
 }
 
 class Ledger {
@@ -123,7 +126,7 @@ class Ledger {
   double balanceAtEnd(int key) =>
       opening +
       all
-          .where((t) => key <= 0 || keyOf(t.date) <= key)
+          .where((t) => t.inBank && (key <= 0 || keyOf(t.date) <= key))
           .fold(0.0, (a, t) => a + t.signed);
 
   static double income(List<Txn> l) =>

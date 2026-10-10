@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
@@ -122,9 +123,9 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                         label: const Text('Delete',
                             style: TextStyle(color: AppColors.red100)),
                         onPressed: () async {
-                          final ok = await showDialog<bool>(
+                          final ok = await showAppSheet<bool>(
                             context: sheet,
-                            builder: (d) => AlertDialog(
+                            builder: (d) => SheetFrame(
                               title: const Text('Delete transaction?'),
                               content: Text(
                                   '${t.merchant}, ${inr(t.amount)} will be removed.'),
@@ -273,11 +274,11 @@ void _showEditSheet(BuildContext context, WidgetRef ref, Txn t, {bool focusNote 
                               icon: const Icon(Icons.calendar_today, size: 16),
                               label: Text('${shortDate(date)} ${date.year}', maxLines: 1),
                               onPressed: () async {
-                                final d = await showDatePicker(
-                                  context: sheet,
-                                  initialDate: date,
-                                  firstDate: DateTime(2000),
-                                  lastDate: DateTime.now().add(const Duration(days: 1)),
+                                final d = await pickDateSheet(
+                                  sheet,
+                                  initial: date,
+                                  first: DateTime(2000),
+                                  last: DateTime.now().add(const Duration(days: 1)),
                                 );
                                 if (d != null) setS(() => date = d);
                               },

@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'dart:io';
 
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
@@ -277,10 +278,10 @@ Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
   final next = TextEditingController();
   final again = TextEditingController();
   String? error;
-  final ok = await showDialog<bool>(
+  final ok = await showAppSheet<bool>(
     context: context,
     builder: (d) => StatefulBuilder(
-      builder: (_, setS) => AlertDialog(
+      builder: (_, setS) => SheetFrame(
         title: const Text('Change password'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -360,12 +361,12 @@ const _items = [
 Future<void> _clearAllData(BuildContext context, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(context);
   final picked = <String>{};
-  final ok = await showDialog<bool>(
+  final ok = await showAppSheet<bool>(
     context: context,
     builder: (d) => StatefulBuilder(
       builder: (_, setS) {
         final all = picked.length == _items.length;
-        return AlertDialog(
+        return SheetFrame(
           title: const Text('Delete my data'),
           content: SingleChildScrollView(
             child: Column(

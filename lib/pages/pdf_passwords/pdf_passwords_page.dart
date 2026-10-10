@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
@@ -37,10 +38,10 @@ class PdfPasswordsPage extends ConsumerWidget {
     final label = TextEditingController(text: p?.label ?? '');
     final pw = TextEditingController();
     var hide = true;
-    final ok = await showDialog<bool>(
+    final ok = await showAppSheet<bool>(
       context: context,
       builder: (d) => StatefulBuilder(
-        builder: (_, setS) => AlertDialog(
+        builder: (_, setS) => SheetFrame(
           title: Text(p == null ? 'Add password' : 'Edit password'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -93,9 +94,9 @@ class PdfPasswordsPage extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref, SavedPassword p) async {
     final messenger = ScaffoldMessenger.of(context);
-    final ok = await showDialog<bool>(
+    final ok = await showAppSheet<bool>(
       context: context,
-      builder: (d) => AlertDialog(
+      builder: (d) => SheetFrame(
         title: const Text('Delete password?'),
         content: Text('"${p.label}" will be removed. You can add it again later.'),
         actions: [
