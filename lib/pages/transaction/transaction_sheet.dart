@@ -94,7 +94,7 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                   ),
                   onPressed: () {
                     Navigator.pop(sheet);
-                    _showEditSheet(context, ref, t, focusNote: true);
+                    showEditTransactionSheet(context, ref, t, focusNote: true);
                   },
                   icon: const Icon(Icons.edit_note, size: 20),
                   label: Text(t.note == null && t.label == null
@@ -159,7 +159,7 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                         label: 'Edit',
                         onPressed: () {
                           Navigator.pop(sheet);
-                          _showEditSheet(context, ref, t);
+                          showEditTransactionSheet(context, ref, t);
                         },
                       ),
                     ),
@@ -177,7 +177,8 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
 /// Quick labels. The user can also type their own.
 const _labels = ['Friend', 'Family', 'Rent', 'Lent', 'Borrowed', 'Gift', 'Work', 'Trip', 'One-time'];
 
-void _showEditSheet(BuildContext context, WidgetRef ref, Txn t, {bool focusNote = false}) {
+/// The edit form as a bottom sheet. Completes when the sheet is closed.
+Future<void> showEditTransactionSheet(BuildContext context, WidgetRef ref, Txn t, {bool focusNote = false}) {
   final messenger = ScaffoldMessenger.of(context);
   final merchant = TextEditingController(text: t.merchant);
   final amount = TextEditingController(
@@ -192,7 +193,7 @@ void _showEditSheet(BuildContext context, WidgetRef ref, Txn t, {bool focusNote 
   var applyAll = false; // also move the other payments to this merchant
   final cats = t.isIncome ? incomeCategories : expenseCategories;
 
-  showModalBottomSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true, // stays below the status bar

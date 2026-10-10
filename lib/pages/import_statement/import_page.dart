@@ -472,20 +472,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             ),
           ),
           SolidButtonWidget(
-            label: _busy
-                ? 'Importing...'
-                : _applyIds.isEmpty && p.alreadyUploaded && p.changes.isNotEmpty
-                    ? 'Tick the changes you want'
-                    : _applyIds.isNotEmpty && (p.alreadyUploaded || fresh == 0)
-                    ? 'Apply ${_applyIds.length} change${_applyIds.length == 1 ? '' : 's'}'
-                    : _applyIds.isNotEmpty
-                        ? 'Import $fresh and apply ${_applyIds.length}'
-                        : p.alreadyUploaded
-                            ? 'Already uploaded'
-                            : fresh == 0
-                                ? 'Nothing new to import'
-                                : 'Import $fresh transactions',
-            onPressed: _busy || (_applyIds.isEmpty && (p.alreadyUploaded || fresh == 0)) ? null : _confirm,
+            label: _primaryLabel(p),
+            onPressed: _busy || _primaryDisabled(p) ? null : () => _primaryAction(p),
           ),
           TextButton(
             onPressed: () => setState(() {
@@ -499,9 +487,46 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     );
   }
 
+  // ---------- the one main button: its text follows what the user has ticked ----------
+
+  /// Reviewing a file that is already in the app, with nothing ticked: the button just closes the review.
+  bool _keepingMine(StatementPreview p) =>
+      _applyIds.isEmpty && p.changes.isNotEmpty && (p.alreadyUploaded || p.newCount == 0);
+
+  String _primaryLabel(StatementPreview p) {
+    final n = _applyIds.length;
+    final fresh = p.newCount;
+    if (_busy) return 'Importing...';
+    if (_keepingMine(p)) return 'Keep my version';
+    if (n > 0) {
+      final all = n == p.changes.length;
+      if (p.alreadyUploaded || fresh == 0) {
+        return all ? "Use the bank's version for all" : 'Apply $n, keep the rest as mine';
+      }
+      return 'Import $fresh and apply $n';
+    }
+    if (p.alreadyUploaded) return 'Already uploaded';
+    if (fresh == 0) return 'Nothing new to import';
+    return 'Import $fresh transactions';
+  }
+
+  bool _primaryDisabled(StatementPreview p) =>
+      !_keepingMine(p) && _applyIds.isEmpty && (p.alreadyUploaded || p.newCount == 0);
+
+  void _primaryAction(StatementPreview p) {
+    if (_keepingMine(p)) {
+      // nothing is changed: your rows stay exactly as they are
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No changes made. Your version is kept.')));
+      context.canPop() ? context.pop() : context.go('/');
+      return;
+    }
+    _confirm();
+  }
+
   // ---------- decisions: tick = use the bank's version / merge, untick = keep as is ----------
 
-  /// A card with a short title, one hint line, a select-all toggle and one row per decision.
+  /// A card with a title, one hint line and one row per decision. The checkbox in the header sits in the
+  /// same column as the row checkboxes and ticks or clears all of them.
   Widget _decisionCard({
     required IconData icon,
     required Color tint,
@@ -512,42 +537,61 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     required VoidCallback onToggleAll,
     required List<Widget> rows,
   }) {
-    final all = selected.length == total;
+    final bool? all = selected.isEmpty ? false : (selected.length == total ? true : null);
     return Container(
       margin: const EdgeInsets.only(top: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: tint.withOpacity(0.35)),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 6, 0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                      color: tint.withOpacity(0.14), shape: BoxShape.circle),
-                  child: Icon(icon, size: 16, color: tint),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
-                TextButton(
-                  onPressed: onToggleAll,
-                  child: Text(all ? 'Clear' : 'Select all'),
-                ),
-              ],
+          InkWell(
+            onTap: onToggleAll,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 12, 16, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: all,
+                    tristate: true,
+                    onChanged: (_) => onToggleAll(),
+                    activeColor: AppColors.violet100,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(hint, style: TextStyle(color: Colors.grey[600], fontSize: 12.5, height: 1.35)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: tint.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('${selected.length}/$total',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-            child: Text(hint, style: TextStyle(color: Colors.grey[600], fontSize: 12.5)),
           ),
           for (final r in rows) ...[
             Divider(height: 1, color: Colors.grey.shade200),
@@ -568,7 +612,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       onTap: onTap,
       child: Container(
         color: ticked ? AppColors.violet20.withOpacity(0.5) : null,
-        padding: const EdgeInsets.fromLTRB(6, 8, 14, 10),
+        padding: const EdgeInsets.fromLTRB(6, 14, 16, 18),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -584,7 +628,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, for (final l in lines) Padding(padding: const EdgeInsets.only(top: 5), child: l)],
+                  children: [
+                    title,
+                    for (final l in lines) Padding(padding: const EdgeInsets.only(top: 9), child: l),
+                  ],
                 ),
               ),
             ),
