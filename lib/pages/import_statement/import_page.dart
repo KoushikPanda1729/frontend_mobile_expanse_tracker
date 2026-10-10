@@ -400,7 +400,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               fontSize: 24,
                               fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text('${d(first)}  -  ${d(last)}',
+                      Text(
+                          p.alreadyUploaded && p.changes.isNotEmpty
+                              ? '${p.changes.length} row${p.changes.length == 1 ? '' : 's'} differ  ·  ${d(first)} - ${d(last)}'
+                              : '${d(first)}  -  ${d(last)}',
                           style: const TextStyle(color: Colors.white70)),
                     ],
                   ),
@@ -471,7 +474,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           SolidButtonWidget(
             label: _busy
                 ? 'Importing...'
-                : _applyIds.isNotEmpty && (p.alreadyUploaded || fresh == 0)
+                : _applyIds.isEmpty && p.alreadyUploaded && p.changes.isNotEmpty
+                    ? 'Tick the changes you want'
+                    : _applyIds.isNotEmpty && (p.alreadyUploaded || fresh == 0)
                     ? 'Apply ${_applyIds.length} change${_applyIds.length == 1 ? '' : 's'}'
                     : _applyIds.isNotEmpty
                         ? 'Import $fresh and apply ${_applyIds.length}'
@@ -589,58 +594,46 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     );
   }
 
-  /// The row side by side: what you have vs what the bank says. Fields that differ are tinted and the
-  /// bank's value is bold; fields that are the same stay grey so the difference is easy to spot.
-  Widget _compare(StatementChange c) {
-    String d(DateTime x) => '${const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][x.weekday - 1]}, ${shortDate(x)} ${x.year}';
-    Widget cell(String text, {bool strike = false, bool strong = false, bool tint = false, Color? color}) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+  /// One changed field on one line: your value struck through, an arrow, the bank's value highlighted.
+  Widget _fieldChange(String label, String yours, String bank) {
+    Widget pill(String t, {required bool bankSide}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
-            color: tint ? AppColors.yellow100.withOpacity(0.2) : null,
+            color: bankSide ? AppColors.yellow100.withOpacity(0.22) : Colors.grey.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-            text,
+            t,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-              color: color ?? (strike ? Colors.grey[500] : Colors.grey[800]),
-              decoration: strike ? TextDecoration.lineThrough : null,
+              fontWeight: bankSide ? FontWeight.w700 : FontWeight.w500,
+              color: bankSide ? AppColors.dark100 : Colors.grey[600],
+              decoration: bankSide ? null : TextDecoration.lineThrough,
             ),
           ),
         );
-    TableRow line(String label, String yours, String bank, String field) {
-      final changed = c.fields.contains(field);
-      return TableRow(children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-        ),
-        cell(yours, strike: changed),
-        cell(bank, strong: changed, tint: changed, color: changed ? AppColors.dark100 : Colors.grey[800]),
-      ]);
-    }
-
-    final sign = c.isIncome ? '+ ' : '- ';
-    return Table(
-      columnWidths: const {0: FixedColumnWidth(66), 1: FlexColumnWidth(), 2: FlexColumnWidth()},
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TableRow(children: [
-          const SizedBox.shrink(),
-          Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 2),
-            child: Text('You have', style: TextStyle(color: Colors.grey[600], fontSize: 11.5, fontWeight: FontWeight.w600)),
+        SizedBox(
+          width: 62,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8, bottom: 2),
-            child: Text('Bank says', style: TextStyle(color: AppColors.violet100, fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              pill(yours, bankSide: false),
+              const Icon(Icons.arrow_forward, size: 14, color: AppColors.violet100),
+              pill(bank, bankSide: true),
+            ],
           ),
-        ]),
-        line('Name', c.yoursName, c.bankName, 'name'),
-        line('Amount', '$sign${inr(c.yoursAmount)}', '$sign${inr(c.bankAmount)}', 'amount'),
-        line('Category', c.yoursCategory, c.bankCategory, 'category'),
-        line('Date', d(c.yoursDate), d(c.bankDate), 'date'),
+        ),
       ],
     );
   }
@@ -676,13 +669,28 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             title: Row(
               children: [
                 Expanded(
-                  child: Text(
-                      '${c.fields.map((f) => const {'name': 'Name', 'amount': 'Amount', 'category': 'Category', 'date': 'Date'}[f]).join(' and ')} ${c.fields.length == 1 ? 'differs' : 'differ'}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.violet100)),
+                  child: Text(c.bankName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                 ),
+                Text('${c.isIncome ? '+' : '-'} ${inr(c.bankAmount)}',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: c.isIncome ? AppColors.green100 : AppColors.red100)),
               ],
             ),
-            lines: [_compare(c)],
+            lines: [
+              // what the row is, so the change has context
+              Text('${shortDate(c.bankDate)} ${c.bankDate.year}  ·  ${c.bankCategory}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12.5)),
+              if (c.fields.contains('name')) _fieldChange('Name', c.yoursName, c.bankName),
+              if (c.fields.contains('amount'))
+                _fieldChange('Amount', '${c.isIncome ? '+' : '-'} ${inr(c.yoursAmount)}', '${c.isIncome ? '+' : '-'} ${inr(c.bankAmount)}'),
+              if (c.fields.contains('category')) _fieldChange('Category', c.yoursCategory, c.bankCategory),
+              if (c.fields.contains('date'))
+                _fieldChange('Date', '${shortDate(c.yoursDate)} ${c.yoursDate.year}', '${shortDate(c.bankDate)} ${c.bankDate.year}'),
+            ],
           ),
       ],
     );
