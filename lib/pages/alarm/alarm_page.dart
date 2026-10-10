@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/components/sheets/app_sheets.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
@@ -21,6 +23,13 @@ class AlarmPage extends ConsumerStatefulWidget {
 class _AlarmPageState extends ConsumerState<AlarmPage> {
   late ReminderState _d = ref.read(reminderProvider); // the alarm as edited on screen
   bool _saving = false;
+  late final Timer _tick = Timer.periodic(const Duration(seconds: 20), (_) => setState(() {})); // keeps the "in 5 min" banner moving
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
 
   bool _same(ReminderState a, ReminderState b) =>
       a.enabled == b.enabled &&
@@ -28,13 +37,14 @@ class _AlarmPageState extends ConsumerState<AlarmPage> {
       a.minute == b.minute &&
       a.dayMode == b.dayMode &&
       a.day == b.day &&
-      a.loud == b.loud;
+      a.loud == b.loud &&
+      a.months == b.months;
 
   bool get _dirty => !_same(_d, ref.read(reminderProvider));
 
-  void _edit({bool? enabled, int? hour, int? minute, int? dayMode, int? day, bool? loud}) {
+  void _edit({bool? enabled, int? hour, int? minute, int? dayMode, int? day, bool? loud, int? months}) {
     setState(() => _d = _d.copyWith(
-        enabled: enabled, hour: hour, minute: minute, dayMode: dayMode, day: day, loud: loud));
+        enabled: enabled, hour: hour, minute: minute, dayMode: dayMode, day: day, loud: loud, months: months));
   }
 
   Future<void> _save(DateTime now) async {
@@ -76,6 +86,7 @@ class _AlarmPageState extends ConsumerState<AlarmPage> {
     ref.listen<ReminderState>(reminderProvider, (prev, next) {
       if (prev != null && _same(_d, prev)) setState(() => _d = next);
     });
+    _tick; // starts the timer
     final r = _d;
     final now = DateTime.now();
     final next = nextAlarm(r, now);
@@ -89,10 +100,11 @@ class _AlarmPageState extends ConsumerState<AlarmPage> {
       if (t != null) _edit(hour: t.hour, minute: t.minute);
     }
 
+    final every = r.months == 4095 ? 'every month' : 'the months you picked';
     String when() => switch (r.dayMode) {
-          0 => 'the last day of every month',
-          1 => 'the 1st of every month',
-          _ => 'day ${r.day} of every month',
+          0 => 'the last day of $every',
+          1 => 'the 1st of $every',
+          _ => 'day ${r.day} of $every',
         };
 
     String nextText() {
@@ -100,7 +112,12 @@ class _AlarmPageState extends ConsumerState<AlarmPage> {
       final days = DateTime(next.year, next.month, next.day)
           .difference(DateTime(now.year, now.month, now.day))
           .inDays;
-      final away = days == 0 ? 'today' : days == 1 ? 'tomorrow' : 'in $days days';
+      final mins = next.difference(now).inMinutes + 1;
+      final away = days == 0
+          ? (mins < 60 ? 'in $mins min' : 'in ${mins ~/ 60} h ${mins % 60} min')
+          : days == 1
+              ? 'tomorrow'
+              : 'in $days days';
       return '${weekdayNames[next.weekday - 1]}, ${shortDate(next)}  ·  $away';
     }
 
@@ -298,6 +315,36 @@ class _AlarmPageState extends ConsumerState<AlarmPage> {
                 ],
               ),
             ),
+
+          label('MONTHS'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var m = 1; m <= 12; m++)
+                FilterChip(
+                  label: Text(monthNames[m - 1].substring(0, 3)),
+                  selected: r.rings(m),
+                  showCheckmark: false,
+                  selectedColor: AppColors.violet20,
+                  labelStyle: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: r.rings(m) ? AppColors.violet100 : AppColors.dark25),
+                  onSelected: (on) {
+                    final bit = 1 << (m - 1);
+                    final next = on ? r.months | bit : r.months & ~bit;
+                    if (next != 0) _edit(months: next); // at least one month stays on
+                  },
+                ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: r.months == 4095 ? null : () => _edit(months: 4095),
+              child: const Text('Every month'),
+            ),
+          ),
 
           label('STYLE'),
           segmented(['Alarm  (sound)', 'Quiet  (banner)'], r.loud ? 0 : 1,

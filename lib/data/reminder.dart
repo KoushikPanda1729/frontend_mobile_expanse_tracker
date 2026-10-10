@@ -155,9 +155,9 @@ int _alarmDay(ReminderState r, DateTime m) {
 DateTime? nextAlarm(ReminderState r, DateTime now) {
   if (!r.enabled) return null;
   var m = DateTime(now.year, now.month);
-  for (var i = 0; i < 14; i++) {
+  for (var i = 0; i < 26; i++) {
     final at = DateTime(m.year, m.month, _alarmDay(r, m), r.hour, r.minute);
-    if (at.isAfter(now)) return at;
+    if (r.rings(m.month) && at.isAfter(now)) return at;
     m = DateTime(m.year, m.month + 1);
   }
   return null;
@@ -182,10 +182,10 @@ Future<void> scheduleMonthEnd(ReminderState r) async {
     final now = tz.TZDateTime.now(tz.local);
     var m = DateTime(now.year, now.month);
     var id = 0;
-    while (id < 12) {
+    for (var i = 0; i < 60 && id < 12; i++) {
       final at = tz.TZDateTime(
           tz.local, m.year, m.month, _alarmDay(r, m), r.hour, r.minute);
-      if (at.isAfter(now)) {
+      if (r.rings(m.month) && at.isAfter(now)) {
         Future<void> put(AndroidScheduleMode mode) => _withIconFallback(() => _plugin.zonedSchedule(
               id,
               'Time to upload your statement',
@@ -266,6 +266,7 @@ class ReminderState {
   final int dayMode; // 0 last day, 1 first day, 2 a chosen day
   final int day; // used when dayMode == 2 (1..28)
   final bool loud; // alarm sound + time-sensitive, instead of a quiet banner
+  final int months; // bit 0 = January ... bit 11 = December: the months it rings in
   final String? snoozedOn; // yyyy-mm-dd
   final bool setupDismissed;
   const ReminderState({
@@ -275,9 +276,12 @@ class ReminderState {
     this.dayMode = 0,
     this.day = 28,
     this.loud = true,
+    this.months = 4095, // every month
     this.snoozedOn,
     this.setupDismissed = false,
   });
+
+  bool rings(int month) => months & (1 << (month - 1)) != 0;
 
   ReminderState copyWith({
     bool? enabled,
@@ -286,6 +290,7 @@ class ReminderState {
     int? dayMode,
     int? day,
     bool? loud,
+    int? months,
     String? snoozedOn,
     bool? setupDismissed,
   }) =>
@@ -296,6 +301,7 @@ class ReminderState {
         dayMode: dayMode ?? this.dayMode,
         day: day ?? this.day,
         loud: loud ?? this.loud,
+        months: months ?? this.months,
         snoozedOn: snoozedOn ?? this.snoozedOn,
         setupDismissed: setupDismissed ?? this.setupDismissed,
       );
@@ -318,6 +324,7 @@ class ReminderNotifier extends StateNotifier<ReminderState> {
         dayMode: p.getInt('rem_mode') ?? 0,
         day: p.getInt('rem_day') ?? 28,
         loud: p.getBool('rem_loud') ?? true,
+        months: p.getInt('rem_months') ?? 4095,
         snoozedOn: p.getString('rem_snooze'),
         setupDismissed: p.getBool('rem_setup_dismissed') ?? false,
       );
@@ -334,6 +341,7 @@ class ReminderNotifier extends StateNotifier<ReminderState> {
       await p.setInt('rem_mode', state.dayMode);
       await p.setInt('rem_day', state.day);
       await p.setBool('rem_loud', state.loud);
+      await p.setInt('rem_months', state.months);
       await p.setBool('rem_setup_dismissed', state.setupDismissed);
       if (state.snoozedOn != null) await p.setString('rem_snooze', state.snoozedOn!);
     } catch (_) {}
