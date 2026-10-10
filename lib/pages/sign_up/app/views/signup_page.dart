@@ -1,7 +1,8 @@
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/countries.dart';
-import 'package:expensetracker/data/settings.dart';
+import 'package:expensetracker/data/api.dart';
+import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/pages/auth/auth_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,14 +52,22 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     }
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
-    // UI only for now: no account is created, the name is just kept for the profile.
-    final name = _name.text.trim();
-    ref.read(profileProvider.notifier).state =
-        Profile(name, name.split(' ').first.toLowerCase());
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    context.goNamed('home');
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authProvider.notifier).register(
+          name: _name.text.trim(),
+          countryCode: _country.dial,
+          phone: _phone.text.trim(),
+          password: _password.text);
+      if (!mounted) return;
+      context.goNamed('home');
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content:
+              Text(e is ApiException ? e.message : 'Could not create the account.')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override

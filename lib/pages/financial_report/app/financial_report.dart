@@ -21,7 +21,8 @@ class _FinancialReportState extends ConsumerState<FinancialReport> {
   List<Widget> _buildPages() {
     final ledger = ref.watch(ledgerProvider).valueOrNull;
     if (ledger == null) return const [QuotePage()];
-    final key = ref.watch(monthProvider) ?? ledger.monthKeys.last;
+    final picked = ref.watch(monthProvider);
+    final key = (picked == null || picked <= 0) ? ledger.monthKeys.last : picked;
     final txns = ledger.inMonth(key);
     final keys = ledger.monthKeys;
     final at = keys.indexOf(key);

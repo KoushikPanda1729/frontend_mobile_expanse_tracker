@@ -1,16 +1,18 @@
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_info.dart';
+import 'package:expensetracker/data/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class SplashPage extends StatefulWidget {
+class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
 
   @override
   SplashPageState createState() => SplashPageState();
 }
 
-class SplashPageState extends State<SplashPage>
+class SplashPageState extends ConsumerState<SplashPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
@@ -20,9 +22,11 @@ class SplashPageState extends State<SplashPage>
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1800), () {
+    Future.delayed(const Duration(milliseconds: 1800), () async {
+      // wait for the saved session to be read, then skip onboarding when signed in
+      final signedIn = await ref.read(authProvider.future);
       if (mounted) {
-        context.go('/onboarding');
+        context.go(signedIn ? '/' : '/onboarding');
       }
     });
   }

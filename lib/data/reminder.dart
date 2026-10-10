@@ -291,7 +291,7 @@ class Nudge {
 /// Null when there is nothing to show today.
 Nudge? nudgeFor(Ledger l, ReminderState r, DateTime today) {
   if (r.snoozedOn == _dayKey(today)) return null;
-  if (l.demo) {
+  if (l.all.isEmpty) {
     return const Nudge(NudgeKind.due, 'Import your first statement',
         'Download it from your bank app, then import it here.');
   }

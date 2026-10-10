@@ -62,3 +62,6 @@ DepositAccountStatement*
 
 # FVM (Flutter version manager) local SDK link
 .fvm/flutter_sdk
+
+# local config (copy .env.example to .env)
+.env

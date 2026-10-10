@@ -2,6 +2,7 @@ import 'package:expensetracker/commons/components/button/app/solid_button_widget
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:expensetracker/data/analysis.dart';
+import 'package:expensetracker/data/analytics.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -90,11 +91,20 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
   }
 
   Widget _body(Ledger l) {
+    if (l.all.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('No transactions yet', style: TextStyle(color: Colors.grey[600])),
+            TextButton(
+                onPressed: () => context.push('/import'),
+                child: const Text('Import a statement')),
+          ],
+        ),
+      );
+    }
     final r = _range(l);
-    final txns = [
-      for (final t in l.all)
-        if (!t.date.isBefore(r.start) && !t.date.isAfter(r.end)) t
-    ];
     final head = <Widget>[
       _periodChips(l),
       Padding(
@@ -103,20 +113,35 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
             style: TextStyle(color: Colors.grey[600], fontSize: 12)),
       ),
     ];
-    if (txns.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+    Widget message(Widget child) => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+          children: [
+            ...head,
+            Padding(padding: const EdgeInsets.only(top: 60), child: Center(child: child)),
+          ],
+        );
+
+    // the numbers come from GET /analytics/summary
+    final summary = ref.watch(summaryProvider((ymd(r.start), ymd(r.end))));
+    return summary.when(
+      loading: () => message(const CircularProgressIndicator()),
+      error: (e, _) => message(Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ...head,
-          const Padding(
-            padding: EdgeInsets.only(top: 60),
-            child: Center(child: Text('No transactions in this range')),
+          Text('Could not load the analysis\n$e', textAlign: TextAlign.center),
+          TextButton(
+            onPressed: () => ref.invalidate(summaryProvider),
+            child: const Text('Retry'),
           ),
         ],
-      );
-    }
-    final a = Analysis.of(txns);
+      )),
+      data: (a) => a == null
+          ? message(const Text('No transactions in this range'))
+          : _content(head, a, r),
+    );
+  }
 
+  Widget _content(List<Widget> head, Analysis a, DateTimeRange r) {
     // top 5 categories, the rest grouped as "Others"
     final top = a.cats.take(5).toList();
     final others = a.cats.skip(5).fold(0.0, (s, e) => s + e.value);
@@ -149,15 +174,16 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
           ),
         if (a.merchants.isNotEmpty)
           _section(
-            'Top merchants',
+            'Where you paid the most',
             Column(children: [
-              for (final m in a.merchants.take(3))
+              for (final m in a.merchants.take(8))
                 _rankRow(m.$1, '${m.$2} payment${m.$2 == 1 ? '' : 's'}',
                     inr(m.$3), m.$3 / a.merchants.first.$3),
             ]),
           ),
         if (a.monthly.length > 1)
           _section('Month by month', _monthlyBars(a.monthly)),
+        _balanceTrend(r),
         SolidButtonWidget(
           label: 'Download full report',
           onPressed: () => context.push('/export'),
@@ -167,6 +193,64 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
   }
 
   // ---------- pieces ----------
+
+  /// Running balance (GET /analytics/balance-trend).
+  Widget _balanceTrend(DateTimeRange r) {
+    final trend = ref.watch(balanceTrendProvider((ymd(r.start), ymd(r.end))));
+    return trend.maybeWhen(
+      data: (pts) {
+        if (pts.length < 2) return const SizedBox.shrink();
+        final lo = pts.map((p) => p.$2).reduce((a, b) => a < b ? a : b);
+        final hi = pts.map((p) => p.$2).reduce((a, b) => a > b ? a : b);
+        final pad = (hi - lo) * 0.1 + 1;
+        return _section(
+          'Balance trend',
+          SizedBox(
+            height: 170,
+            child: LineChart(
+              LineChartData(
+                minY: lo - pad,
+                maxY: hi + pad,
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: const FlTitlesData(show: false),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    tooltipBgColor: AppColors.violet100,
+                    getTooltipItems: (spots) => [
+                      for (final s in spots)
+                        LineTooltipItem(
+                          '${shortDate(pts[s.x.toInt()].$1)}\n${inr(s.y)}',
+                          const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w600),
+                        )
+                    ],
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      for (var i = 0; i < pts.length; i++)
+                        FlSpot(i.toDouble(), pts[i].$2)
+                    ],
+                    isCurved: true,
+                    color: AppColors.violet100,
+                    barWidth: 3,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: AppColors.violet100.withOpacity(0.12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
 
   Widget _periodChips(Ledger l) {
     Widget chip(String label, _P p, {bool custom = false}) {
@@ -302,7 +386,7 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
           ),
           const SizedBox(height: 14),
           Text(
-            '${inr(a.avgDaily.roundToDouble())} average per day  ·  ${a.txns.length} transactions',
+            '${inr(a.avgDaily.roundToDouble())} average per day  ·  ${a.count} transactions',
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],

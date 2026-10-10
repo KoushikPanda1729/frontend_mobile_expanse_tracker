@@ -6,6 +6,8 @@ import 'package:expensetracker/pages/import_statement/import_page.dart';
 import 'package:expensetracker/pages/login/app/views/login_page.dart';
 import 'package:expensetracker/pages/main_screen/main_screen.dart';
 import 'package:expensetracker/pages/onboarding_page/app/views/onboarding_page.dart';
+import 'package:expensetracker/pages/pdf_passwords/pdf_passwords_page.dart';
+import 'package:expensetracker/pages/statements/statements_page.dart';
 import 'package:expensetracker/pages/sign_up/app/views/signup_page.dart';
 import 'package:expensetracker/pages/onboarding_page/app/views/splash_page.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +33,16 @@ final goRouter = GoRouter(
       name: 'import',
       path: '/import',
       builder: (context, state) => const ImportPage(),
+    ),
+    GoRoute(
+      name: 'statements',
+      path: '/statements',
+      builder: (context, state) => const StatementsPage(),
+    ),
+    GoRoute(
+      name: 'pdfPasswords',
+      path: '/pdf-passwords',
+      builder: (context, state) => const PdfPasswordsPage(),
     ),
     GoRoute(
       name: 'export',

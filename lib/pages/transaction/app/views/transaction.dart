@@ -8,6 +8,7 @@ import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:expensetracker/pages/financial_report/app/financial_report.dart';
 import 'package:expensetracker/data/ledger.dart';
+import 'package:expensetracker/pages/transaction/transaction_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,7 +109,7 @@ class TransactionScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildTransactionsList(list),
+              _buildTransactionsList(context, ref, list),
             ],
           ),
         ),
@@ -116,7 +117,7 @@ class TransactionScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTransactionsList(List<Txn> txns) {
+  Widget _buildTransactionsList(BuildContext context, WidgetRef ref, List<Txn> txns) {
     final byDay = <DateTime, List<Txn>>{};
     for (final t in txns) {
       byDay.putIfAbsent(t.date, () => []).add(t);
@@ -143,7 +144,7 @@ class TransactionScreen extends ConsumerWidget {
                   title: t.merchant,
                   description: '${t.category.name} · ${t.mode}',
                   amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
-                  onTap: () {},
+                  onTap: () => showTransactionSheet(context, ref, t),
                 ),
                 const SizedBox(height: 8),
               ],

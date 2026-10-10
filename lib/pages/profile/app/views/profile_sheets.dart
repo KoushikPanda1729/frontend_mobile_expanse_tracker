@@ -2,9 +2,13 @@ import 'dart:io';
 
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
+import 'package:expensetracker/data/api.dart';
+import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/reminder.dart';
 import 'package:expensetracker/data/settings.dart';
+import 'package:expensetracker/data/statements.dart';
+import 'package:expensetracker/pages/pdf_passwords/pdf_passwords_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -135,14 +139,21 @@ void showAccountSheet(BuildContext context, WidgetRef ref) {
               const SizedBox(height: 20),
               SolidButtonWidget(
                 label: 'Save',
-                onPressed: () {
+                onPressed: () async {
                   if (name.text.trim().isEmpty) return;
-                  ref.read(profileProvider.notifier).state = Profile(
-                    name.text.trim(),
-                    handle.text.trim().replaceAll('@', ''),
-                    photoPath: photo,
-                  );
-                  Navigator.pop(sheet);
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    await ref.read(profileProvider.notifier).save(
+                          name: name.text.trim(),
+                          handle: handle.text.trim().replaceAll('@', ''),
+                          photoPath: photo,
+                        );
+                    if (sheet.mounted) Navigator.pop(sheet);
+                  } catch (e) {
+                    messenger.showSnackBar(SnackBar(
+                        content: Text(
+                            e is ApiException ? e.message : 'Could not save.')));
+                  }
                 },
               ),
             ],
@@ -198,33 +209,14 @@ void showSettingsSheet(BuildContext context, WidgetRef ref) {
               }),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.restart_alt, color: AppColors.red100),
-                title: const Text('Reset to sample data',
+                leading: const Icon(Icons.delete_sweep_outlined, color: AppColors.red100),
+                title: const Text('Delete my data',
                     style: TextStyle(color: AppColors.red100)),
-                subtitle: const Text('Deletes imported and added transactions'),
-                onTap: () => showDialog<void>(
-                  context: sheet,
-                  builder: (d) => AlertDialog(
-                    title: const Text('Reset data?'),
-                    content: const Text(
-                        'Imported and manually added transactions will be removed.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(d),
-                          child: const Text('Cancel')),
-                      TextButton(
-                        onPressed: () {
-                          ref.read(ledgerProvider.notifier).reset();
-                          ref.read(monthProvider.notifier).state = null;
-                          Navigator.pop(d);
-                          Navigator.pop(sheet);
-                        },
-                        child: const Text('Reset',
-                            style: TextStyle(color: AppColors.red100)),
-                      ),
-                    ],
-                  ),
-                ),
+                subtitle: const Text('Choose what to delete. Your login stays'),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  _clearAllData(context, ref);
+                },
               ),
             ],
           ),
@@ -232,4 +224,217 @@ void showSettingsSheet(BuildContext context, WidgetRef ref) {
       ),
     ),
   );
+}
+
+String _errText(Object e) => e is ApiException ? e.message : 'Something went wrong.';
+
+void showSecuritySheet(BuildContext context, WidgetRef ref) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: _sheetShape,
+    builder: (sheet) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Security',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.lock_outline, color: AppColors.violet100),
+              title: const Text('Change password'),
+              subtitle: const Text('You will be signed out on every device'),
+              onTap: () {
+                Navigator.pop(sheet);
+                _changePassword(context, ref);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.delete_sweep_outlined, color: AppColors.red100),
+              title: const Text('Delete all my data',
+                  style: TextStyle(color: AppColors.red100)),
+              subtitle: const Text('Choose what to delete. Your login stays'),
+              onTap: () {
+                Navigator.pop(sheet);
+                _clearAllData(context, ref);
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final router = GoRouter.of(context);
+  final current = TextEditingController();
+  final next = TextEditingController();
+  final again = TextEditingController();
+  String? error;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (_, setS) => AlertDialog(
+        title: const Text('Change password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+                controller: current,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Current password')),
+            TextField(
+                controller: next,
+                obscureText: true,
+                decoration: const InputDecoration(
+                    labelText: 'New password', helperText: 'At least 8 characters')),
+            TextField(
+                controller: again,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'New password again')),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(error!, style: const TextStyle(color: AppColors.red100)),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              if (current.text.isEmpty) {
+                setS(() => error = 'Enter your current password');
+              } else if (next.text.length < 8 || next.text.length > 72) {
+                setS(() => error = 'Use 8 to 72 characters');
+              } else if (next.text != again.text) {
+                setS(() => error = 'The new passwords do not match');
+              } else {
+                Navigator.pop(d, true);
+              }
+            },
+            child: const Text('Change'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await api.post('/users/me/password',
+        body: {'currentPassword': current.text, 'newPassword': next.text});
+    // the server signed this account out everywhere
+    await ref.read(authProvider.notifier).logout();
+    router.go('/login');
+    messenger.showSnackBar(
+        const SnackBar(content: Text('Password changed. Sign in again.')));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(_errText(e))));
+  }
+}
+
+/// One thing the user can delete.
+class _Item {
+  final String key; // server scope, or 'phone' for files on this device
+  final String title, sub;
+  const _Item(this.key, this.title, this.sub);
+}
+
+const _items = [
+  _Item('transactions', 'Transactions and statements',
+      'All transactions, and the imported PDFs they came from'),
+  _Item('budgets', 'Budgets', 'Your monthly category limits'),
+  _Item('passwords', 'Saved PDF passwords', 'Passwords kept for locked statements'),
+  _Item('photo', 'Profile photo', 'Your name and login stay'),
+  _Item('phone', 'Files on this phone', 'Downloaded statement PDFs and cached photos'),
+];
+
+/// Lets the user pick what to delete, then removes it from the server
+/// (DELETE /users/me/data?scope=...) and from this phone. The account and login always stay.
+Future<void> _clearAllData(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final picked = <String>{};
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (_, setS) {
+        final all = picked.length == _items.length;
+        return AlertDialog(
+          title: const Text('Delete my data'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Choose what to delete. This cannot be undone.'),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: AppColors.violet100,
+                  title: const Text('Select all',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  value: all,
+                  onChanged: (v) => setS(() {
+                    picked.clear();
+                    if (v == true) picked.addAll(_items.map((i) => i.key));
+                  }),
+                ),
+                const Divider(height: 1),
+                for (final i in _items)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: AppColors.violet100,
+                    title: Text(i.title),
+                    subtitle: Text(i.sub),
+                    value: picked.contains(i.key),
+                    onChanged: (v) => setS(() {
+                      v == true ? picked.add(i.key) : picked.remove(i.key);
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: picked.isEmpty ? null : () => Navigator.pop(d, true),
+              child: Text(
+                  picked.isEmpty ? 'Delete' : 'Delete (${picked.length})',
+                  style: TextStyle(
+                      color: picked.isEmpty ? Colors.grey : AppColors.red100)),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  if (ok != true || picked.isEmpty) return;
+  try {
+    final scope = picked.where((k) => k != 'phone').toList();
+    if (scope.isNotEmpty) {
+      await api.request('DELETE', '/users/me/data', query: {'scope': scope.join(',')});
+    }
+    if (picked.contains('phone')) await clearLocalFiles();
+    // reload whatever was touched
+    if (picked.contains('transactions')) {
+      ref.invalidate(ledgerProvider);
+      ref.invalidate(statementsProvider);
+      ref.read(monthProvider.notifier).state = null;
+      ref.read(filterProvider.notifier).state = const TxnFilter();
+    }
+    if (picked.contains('budgets')) ref.invalidate(budgetsProvider);
+    if (picked.contains('passwords')) ref.invalidate(pdfPasswordsProvider);
+    // the profile photo is a local copy of the server one
+    if (picked.contains('photo') || picked.contains('phone')) ref.invalidate(profileProvider);
+    messenger.showSnackBar(const SnackBar(content: Text('Deleted')));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(_errText(e))));
+  }
 }

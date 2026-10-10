@@ -1,12 +1,11 @@
-import 'dart:typed_data';
-
 import 'package:dotted_border/dotted_border.dart';
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/components/transaction_card/app/transaction_card.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
+import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/statement_import.dart';
-import 'package:expensetracker/data/statement_parser.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,9 +23,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   _Step _step = _Step.pick;
   bool _busy = false;
   String? _error;
-  String _fileName = '';
-  Uint8List? _bytes;
-  ParsedStatement? _parsed;
+  PlatformFile? _file;
+  StatementPreview? _found;
+  String? _typedPassword; // the typed password that opened the file, if any
+  bool _remember = false; // save the typed password for next time
   int _added = 0, _skipped = 0;
   final _pw = TextEditingController();
 
@@ -45,65 +45,70 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         setState(() => _error = 'Could not read that file.');
         return;
       }
-      _fileName = f.name;
-      _bytes = f.bytes;
+      _file = f;
       _pw.clear();
+      _remember = false;
       _read();
     } catch (e) {
       setState(() => _error = 'Could not open the file picker: $e');
     }
   }
 
-  void _read({String? password}) {
+  String _message(Object e, String fallback) =>
+      e is ApiException ? e.message : fallback;
+
+  /// Asks the server to read the PDF. A locked file is tried with the saved passwords first.
+  Future<void> _read({String? password}) async {
     setState(() => _busy = true);
     try {
-      final p = readStatement(_bytes!, password: password);
-      if (p == null) {
-        setState(() {
-          _busy = false;
-          _step = _Step.pick;
-          _error = 'No transactions found. This works with SBI statement PDFs.';
-        });
-        return;
-      }
+      final p = await previewStatement(_file!, password: password);
+      if (!mounted) return;
       setState(() {
         _busy = false;
-        _parsed = p;
+        _found = p;
+        _typedPassword = password;
         _step = _Step.preview;
         _error = null;
       });
-    } on NeedsPassword {
-      setState(() {
-        _busy = false;
-        _step = _Step.password;
-        _error = password == null ? null : 'Wrong password, try again.';
-      });
-    } catch (_) {
-      setState(() {
-        _busy = false;
-        _step = _Step.pick;
-        _error = 'Could not read this PDF.';
-      });
+    } catch (e) {
+      if (!mounted) return;
+      if (needsPdfPassword(e)) {
+        final wrong = e is ApiException && e.code == 'PDF_PASSWORD_INCORRECT';
+        setState(() {
+          _busy = false;
+          _step = _Step.password;
+          _error = wrong ? 'Wrong password, try again.' : null;
+        });
+      } else {
+        setState(() {
+          _busy = false;
+          _step = _Step.pick;
+          _error = _message(e, 'Could not read this PDF.');
+        });
+      }
     }
   }
 
-  /// How many parsed rows are not already in the ledger.
-  int _newCount(ParsedStatement p) {
-    final l = ref.read(ledgerProvider).valueOrNull;
-    final have = (l == null || l.demo) ? <String>{} : {for (final t in l.all) t.key};
-    return p.txns.where((t) => !have.contains(t.key)).length;
-  }
-
-  void _confirm() {
-    final p = _parsed!;
-    final (added, skipped) =
-        ref.read(ledgerProvider.notifier).importTxns(p.txns, p.opening);
-    ref.read(monthProvider.notifier).state = null;
-    setState(() {
-      _added = added;
-      _skipped = skipped;
-      _step = _Step.done;
-    });
+  Future<void> _confirm() async {
+    setState(() => _busy = true);
+    try {
+      final (added, skipped) = await uploadStatement(_file!,
+          password: _typedPassword, savePassword: _remember);
+      await ref.read(ledgerProvider.notifier).refresh();
+      if (!mounted) return;
+      ref.read(monthProvider.notifier).state = null;
+      setState(() {
+        _busy = false;
+        _added = added;
+        _skipped = skipped;
+        _step = _Step.done;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_message(e, 'Import failed.'))));
+    }
   }
 
   // ---------- UI ----------
@@ -215,7 +220,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     Icon(Icons.lock_outline, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text('The file is read on this phone only.',
+                      child: Text('The file is sent securely and stored encrypted on your account.',
                           style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                     ),
                   ],
@@ -270,7 +275,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           ),
           const SizedBox(height: 6),
           Center(
-            child: Text(_fileName,
+            child: Text(_file?.name ?? '',
                 style: TextStyle(color: Colors.grey[600]),
                 overflow: TextOverflow.ellipsis),
           ),
@@ -285,6 +290,15 @@ class _ImportPageState extends ConsumerState<ImportPage> {
               border: const OutlineInputBorder(),
             ),
             onSubmitted: (v) => _read(password: v),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppColors.violet100,
+            title: const Text('Remember this password'),
+            subtitle: const Text('Saved encrypted, so you do not type it again'),
+            value: _remember,
+            onChanged: (v) => setState(() => _remember = v ?? false),
           ),
           const Spacer(),
           SolidButtonWidget(
@@ -304,11 +318,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   }
 
   Widget _preview() {
-    final p = _parsed!;
-    final l = ref.watch(ledgerProvider).valueOrNull;
-    final fresh = _newCount(p);
-    final dup = p.txns.length - fresh;
-    final first = p.txns.first.date, last = p.txns.last.date;
+    final p = _found!;
+    final fresh = p.newCount;
+    final dup = p.duplicateCount;
+    final first = p.periodStart, last = p.periodEnd;
     String d(DateTime x) => '${shortDate(x)} ${x.year}';
 
     Widget stat(String label, String v, Color c) => Expanded(
@@ -361,7 +374,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               color: Colors.white70, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(_fileName,
+                            child: Text(_file?.name ?? '',
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                     color: Colors.white70, fontSize: 13)),
@@ -369,7 +382,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text('${p.txns.length} transactions found',
+                      Text('${p.count} transactions found',
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -383,9 +396,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    stat('Income', inr(Ledger.income(p.txns)), AppColors.green100),
+                    stat('Income', inr(p.income), AppColors.green100),
                     const SizedBox(width: 10),
-                    stat('Spent', inr(Ledger.expense(p.txns)), AppColors.red100),
+                    stat('Spent', inr(p.expense), AppColors.red100),
                     const SizedBox(width: 10),
                     stat('New', '$fresh', AppColors.violet100),
                   ],
@@ -396,27 +409,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     child: Text('$dup already in the app, they will be skipped.',
                         style: TextStyle(color: Colors.grey[700], fontSize: 13)),
                   ),
-                if (l != null && l.demo)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline,
-                            size: 16, color: AppColors.violet100),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text('This replaces the sample data.',
-                              style: TextStyle(
-                                  color: Colors.grey[700], fontSize: 13)),
-                        ),
-                      ],
-                    ),
-                  ),
                 const SizedBox(height: 20),
                 const Text('Preview',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
-                for (final t in p.txns.take(5)) ...[
+                for (final t in p.sample) ...[
                   TransactionCard(
                     icon: t.category.icon,
                     iconColor: t.category.color,
@@ -428,11 +425,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                   ),
                   const SizedBox(height: 8),
                 ],
-                if (p.txns.length > 5)
+                if (p.count > 5)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Center(
-                      child: Text('and ${p.txns.length - 5} more',
+                      child: Text('and ${p.count - 5} more',
                           style: TextStyle(color: Colors.grey[600])),
                     ),
                   ),
@@ -440,13 +437,19 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             ),
           ),
           SolidButtonWidget(
-            label: fresh == 0 ? 'Nothing new to import' : 'Import $fresh transactions',
-            onPressed: fresh == 0 ? null : _confirm,
+            label: _busy
+                ? 'Importing...'
+                : p.alreadyUploaded
+                    ? 'Already uploaded'
+                    : fresh == 0
+                        ? 'Nothing new to import'
+                        : 'Import $fresh transactions',
+            onPressed: _busy || p.alreadyUploaded || fresh == 0 ? null : _confirm,
           ),
           TextButton(
             onPressed: () => setState(() {
               _step = _Step.pick;
-              _parsed = null;
+              _found = null;
             }),
             child: const Text('Choose a different file'),
           ),

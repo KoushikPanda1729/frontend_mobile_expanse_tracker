@@ -2,6 +2,7 @@ import 'package:expensetracker/commons/components/menu_item/app/menu_item.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/commons/constants/app_images.dart';
+import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/commons/components/profile_avatar/profile_avatar.dart';
 import 'package:expensetracker/data/settings.dart';
@@ -99,6 +100,39 @@ class ProfileScreen extends ConsumerWidget {
                             color: AppColors.dark100.withOpacity(0.1),
                           ),
                           MenuItem(
+                            icon: AppIcons.file,
+                            title: 'My Statements',
+                            subtitle: 'Download or delete imported PDFs',
+                            iconColor: AppColors.violet100,
+                            onTap: () => context.push('/statements'),
+                          ),
+                          Divider(
+                            thickness: 1,
+                            color: AppColors.dark100.withOpacity(0.1),
+                          ),
+                          MenuItem(
+                            icon: AppIcons.settingsIcon,
+                            title: 'PDF Passwords',
+                            subtitle: 'Saved passwords for locked statements',
+                            iconColor: AppColors.violet100,
+                            onTap: () => context.push('/pdf-passwords'),
+                          ),
+                          Divider(
+                            thickness: 1,
+                            color: AppColors.dark100.withOpacity(0.1),
+                          ),
+                          MenuItem(
+                            icon: AppIcons.settingsIcon,
+                            title: 'Security',
+                            subtitle: 'Change password, delete your data',
+                            iconColor: AppColors.violet100,
+                            onTap: () => showSecuritySheet(context, ref),
+                          ),
+                          Divider(
+                            thickness: 1,
+                            color: AppColors.dark100.withOpacity(0.1),
+                          ),
+                          MenuItem(
                             icon: AppIcons.uploadIcon,
                             title: 'Export Data',
                             subtitle: 'Download as CSV or PDF, by date range',
@@ -115,7 +149,10 @@ class ProfileScreen extends ConsumerWidget {
                             subtitle: 'Sign out of your account',
                             iconColor: AppColors.red100,
                             isLogout: true,
-                            onTap: () => context.go('/onboarding'),
+                            onTap: () async {
+                              await ref.read(authProvider.notifier).logout();
+                              if (context.mounted) context.go('/onboarding');
+                            },
                           ),
                         ],
                       ),

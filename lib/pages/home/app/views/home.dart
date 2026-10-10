@@ -6,6 +6,8 @@ import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:expensetracker/data/analysis.dart' show weekdayNames;
+import 'package:expensetracker/data/analytics.dart';
+import 'package:expensetracker/pages/transaction/transaction_sheet.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/reminder.dart';
 import 'package:expensetracker/data/settings.dart';
@@ -24,6 +26,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String selectedFilter = 'Day';
+  int _key = 0; // period shown (month, or a range: see Ledger.inMonth)
+
+  /// Day view only makes sense inside one month; a range shows months instead.
+  String get _filter => (_key <= 0 && selectedFilter == 'Day') ? 'Month' : selectedFilter;
   DateTime? _sel; // day picked in the day-wise chart
 
   void toggleFilter(String newFilter) {
@@ -39,7 +45,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: ledger.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Could not load data\n$e')),
+          error: (e, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Could not load data\n$e', textAlign: TextAlign.center),
+                TextButton(
+                  onPressed: () => ref.invalidate(ledgerProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
           data: _buildBody,
         ),
       ),
@@ -49,6 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildBody(Ledger ledger) {
     final keys = ledger.monthKeys;
     final key = ref.watch(monthProvider) ?? keys.last;
+    _key = key;
     final txns = ledger.inMonth(key);
     return Column(
       children: [
@@ -89,19 +107,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   buildBalanceCard(
                     key: key,
-                    balance: ledger.balanceAtEnd(key),
+                    balance: _balance(ledger, key),
                     income: Ledger.income(txns),
                     expense: Ledger.expense(txns),
-                    demo: ledger.demo,
                   ),
                   _nudge(ledger),
                   const SizedBox(height: 28),
-                  buildDayWise(ledger, txns),
-                  const SizedBox(height: 24),
-                  buildCategoryPie(txns),
-                  const SizedBox(height: 24),
-                  buildRecentTransactions(txns,
-                      () => ref.read(tabProvider.notifier).state = 1),
+                  if (ledger.all.isEmpty)
+                    _emptyState()
+                  else ...[
+                    buildDayWise(ledger, txns),
+                    const SizedBox(height: 24),
+                    buildCategoryPie(txns),
+                    const SizedBox(height: 24),
+                    buildRecentTransactions(context, ref, txns,
+                        () => ref.read(tabProvider.notifier).state = 1),
+                  ],
                   const SizedBox(height: 16),
                 ],
               ),
@@ -183,12 +204,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Balance at the end of the month, from GET /analytics/balance (added up here until it loads).
+  double _balance(Ledger l, int key) {
+    final local = l.balanceAtEnd(key);
+    if (l.all.isEmpty) return local;
+    final end = key > 0 ? DateTime(key ~/ 100, key % 100 + 1, 0) : l.all.last.date;
+    return ref.watch(balanceProvider(ymd(end))).valueOrNull ?? local;
+  }
+
+  /// A new account has no data yet: offer the two ways to add some.
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.violet20.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.account_balance_wallet_outlined,
+              size: 44, color: AppColors.violet100),
+          const SizedBox(height: 12),
+          const Text('No transactions yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text('Import your bank statement or add a transaction by hand.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[700], height: 1.4)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.violet100,
+                    minimumSize: const Size.fromHeight(48),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => context.push('/import'),
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: const Text('Import PDF', maxLines: 1),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.violet100,
+                    side: const BorderSide(color: AppColors.violet100),
+                    minimumSize: const Size.fromHeight(48),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => context.push('/expenses'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add entry', maxLines: 1),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildBalanceCard({
     required int key,
     required double balance,
     required double income,
     required double expense,
-    required bool demo,
   }) {
     Widget pill(String label, double v, IconData icon, String route) {
       return Expanded(
@@ -263,7 +347,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Balance · ${monthLabel(key)}${demo ? ' · Sample data' : ''}',
+              Text('Balance · ${monthLabel(key)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 14)),
               GestureDetector(
                 onTap: () => ref.read(hideBalanceProvider.notifier).state =
@@ -311,32 +395,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _sel!.month == ref0.month)
         ? _sel!
         : ref0;
-    final isDay = selectedFilter == 'Day';
+    final isDay = _filter == 'Day';
 
     // x -> spend, x -> axis label, x -> tooltip title
     final y = <int, double>{};
     final labels = <int, String>{};
     final titles = <int, String>{};
     double minX, maxX;
+    // chart numbers come from GET /analytics/series; until they load (or for sample data) they are added up here
+    const live = true;
     if (isDay) {
-      for (final t in month.where((t) => !t.isIncome)) {
-        y[t.date.day] = (y[t.date.day] ?? 0) + t.amount;
+      final srv = live
+          ? ref
+              .watch(seriesProvider((
+                'day',
+                ymd(DateTime(ref0.year, ref0.month, 1)),
+                ymd(DateTime(ref0.year, ref0.month, lastDay)),
+              )))
+              .valueOrNull
+          : null;
+      final spend = <int, double>{};
+      if (srv != null) {
+        for (final p in srv) {
+          spend[p.$1.day] = p.$2;
+        }
+      } else {
+        for (final t in month.where((t) => !t.isIncome)) {
+          spend[t.date.day] = (spend[t.date.day] ?? 0) + t.amount;
+        }
       }
       for (var d = 1; d <= lastDay; d++) {
-        y[d] = y[d] ?? 0;
+        y[d] = spend[d] ?? 0;
         labels[d] = (d == 1 || d % 5 == 0) ? '$d' : '';
         final dt = DateTime(ref0.year, ref0.month, d);
         titles[d] = '${weekdayNames[dt.weekday - 1]} ${shortDate(dt)}';
       }
       minX = 1;
       maxX = lastDay.toDouble();
-    } else if (selectedFilter == 'Week') {
-      final first = ledger.all.first.date;
-      for (final t in ledger.all.where((t) => !t.isIncome)) {
-        final i = t.date.difference(first).inDays ~/ 7;
-        y[i] = (y[i] ?? 0) + t.amount;
+    } else if (_filter == 'Week') {
+      final srv = live
+          ? ref.watch(seriesProvider(('week', null, null))).valueOrNull
+          : null;
+      final useSrv = srv != null && srv.isNotEmpty;
+      final first = useSrv ? srv.first.$1 : ledger.all.first.date;
+      final last = useSrv ? srv.last.$1 : ledger.all.last.date;
+      if (useSrv) {
+        for (final p in srv) {
+          final i = p.$1.difference(first).inDays ~/ 7;
+          y[i] = (y[i] ?? 0) + p.$2;
+        }
+      } else {
+        for (final t in ledger.all.where((t) => !t.isIncome)) {
+          final i = t.date.difference(first).inDays ~/ 7;
+          y[i] = (y[i] ?? 0) + t.amount;
+        }
       }
-      final n = ledger.all.last.date.difference(first).inDays ~/ 7;
+      final n = last.difference(first).inDays ~/ 7;
       for (var i = 0; i <= n; i++) {
         y[i] = y[i] ?? 0;
         labels[i] = i % 2 == 0 ? 'W${i + 1}' : '';
@@ -345,9 +459,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       minX = 0;
       maxX = (n < 1 ? 1 : n).toDouble();
     } else {
-      final keys = ledger.monthKeys;
+      final srv = live
+          ? ref.watch(seriesProvider(('month', null, null))).valueOrNull
+          : null;
+      final useSrv = srv != null && srv.isNotEmpty;
+      final keys = useSrv
+          ? [for (final p in srv) p.$1.year * 100 + p.$1.month]
+          : ledger.monthKeys;
       for (var i = 0; i < keys.length; i++) {
-        y[i] = Ledger.expense(ledger.inMonth(keys[i]));
+        y[i] = useSrv ? srv[i].$2 : Ledger.expense(ledger.inMonth(keys[i]));
         labels[i] = monthLabel(keys[i]).substring(0, 3);
         titles[i] = '${monthLabel(keys[i])} ${keys[i] ~/ 100}';
       }
@@ -534,7 +654,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: t.merchant,
               description: '${t.category.name} · ${t.mode}',
               amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
-              onTap: () {},
+              onTap: () => showTransactionSheet(context, ref, t),
             ),
             const SizedBox(height: 8),
           ],
@@ -544,7 +664,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget buildTimeFilterChip(String label) {
-    bool isSelected = selectedFilter == label;
+    bool isSelected = _filter == label;
 
     return GestureDetector(
       onTap: () {
@@ -567,7 +687,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-Widget buildRecentTransactions(List<Txn> month, VoidCallback onSeeAll) {
+Widget buildRecentTransactions(BuildContext context, WidgetRef ref, List<Txn> month, VoidCallback onSeeAll) {
   final recent = month.reversed.take(6).toList();
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,7 +709,7 @@ Widget buildRecentTransactions(List<Txn> month, VoidCallback onSeeAll) {
           description: '${t.category.name} · ${t.mode}',
           time: shortDate(t.date),
           amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
-          onTap: () {},
+          onTap: () => showTransactionSheet(context, ref, t),
         ),
         const SizedBox(height: 8),
       ],

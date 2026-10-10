@@ -5,13 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Compact month selector: tap to pick from months that have data.
 class MonthPill extends ConsumerWidget {
-  const MonthPill({super.key});
+  /// Offer All time / Last 3 / Last 6 months next to single months.
+  final bool allowRanges;
+  const MonthPill({super.key, this.allowRanges = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final keys = ref.watch(ledgerProvider).valueOrNull?.monthKeys ?? const [];
     if (keys.isEmpty) return const SizedBox.shrink();
-    final key = ref.watch(monthProvider) ?? keys.last;
+    var key = ref.watch(monthProvider) ?? keys.last;
+    if (!allowRanges && key <= 0) key = keys.last; // monthly screens use the newest month
+    final ranges = allowRanges && keys.length > 1
+        ? const [Ledger.allTime, -3, -6]
+        : const <int>[];
 
     return GestureDetector(
       onTap: () => showModalBottomSheet<void>(
@@ -26,15 +32,19 @@ class MonthPill extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Select month',
+                const Text('Select period',
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                for (final k in keys.reversed)
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                for (final k in [...ranges, ...keys.reversed])
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      '${monthLabel(k)} ${k ~/ 100}',
+                      k > 0 ? '${monthLabel(k)} ${k ~/ 100}' : monthLabel(k),
                       style: TextStyle(
                         fontWeight:
                             k == key ? FontWeight.w700 : FontWeight.w500,
@@ -49,6 +59,10 @@ class MonthPill extends ConsumerWidget {
                       Navigator.pop(sheet);
                     },
                   ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

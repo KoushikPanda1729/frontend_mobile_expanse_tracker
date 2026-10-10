@@ -3,6 +3,7 @@ import 'package:expensetracker/commons/components/notification_bar/notification_
 import 'package:expensetracker/commons/components/text_field/app/views/alpha_neumeric_textfield_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_icons.dart';
+import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,7 +63,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     setState(() {});
   }
 
-  void _save() {
+  Future<void> _save() async {
     final amt = double.tryParse(_amount.text.trim());
     final messenger = ScaffoldMessenger.of(context);
     if (amt == null || amt <= 0) {
@@ -72,14 +73,21 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     final isTransfer = widget.kind == TxnKind.transfer;
     final cat = isTransfer ? categoryByName('Transfer') : categoryByName(_category);
     final who = isTransfer ? _to : _note;
-    ref.read(ledgerProvider.notifier).add(Txn(
-          date: _day(_date),
-          merchant: who.trim().isEmpty ? cat.name : who.trim(),
-          mode: 'Manual',
-          category: cat,
-          amount: amt,
-          isIncome: widget.kind == TxnKind.income,
-        ));
+    try {
+      await ref.read(ledgerProvider.notifier).add(Txn(
+            date: _day(_date),
+            merchant: who.trim().isEmpty ? cat.name : who.trim(),
+            mode: 'Manual',
+            category: cat,
+            amount: amt,
+            isIncome: widget.kind == TxnKind.income,
+          ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(e is ApiException ? e.message : 'Could not save.')));
+      return;
+    }
+    if (!mounted) return;
     ref.read(monthProvider.notifier).state = Ledger.keyOf(_date);
     context.pop();
     messenger.showSnackBar(SnackBar(content: Text('$_title of ${inr(amt)} saved')));

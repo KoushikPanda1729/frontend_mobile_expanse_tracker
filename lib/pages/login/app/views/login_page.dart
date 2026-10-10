@@ -1,8 +1,9 @@
 import 'package:expensetracker/commons/components/button/app/solid_button_widget.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
+import 'package:expensetracker/data/api.dart';
+import 'package:expensetracker/data/auth.dart';
 import 'package:expensetracker/data/countries.dart';
 import 'package:expensetracker/pages/auth/auth_widgets.dart';
-import 'package:expensetracker/pages/login/app/providers/login_page_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,16 +33,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!_form.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
-    final vm = ref.read(loginProvider.notifier);
-    final number = '${_country.dial}${_phone.text.trim()}';
-    vm.updateEmail(number); // the view model still calls this field "email"
-    vm.updatePassword(_password.text);
-    // UI only for now: loginUser() accepts any non-empty credentials.
-    final ok = await vm.loginUser(number, _password.text);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) context.goNamed('home');
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authProvider.notifier).login(
+          countryCode: _country.dial,
+          phone: _phone.text.trim(),
+          password: _password.text);
+      if (!mounted) return;
+      context.goNamed('home');
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(e is ApiException ? e.message : 'Could not sign in.')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override

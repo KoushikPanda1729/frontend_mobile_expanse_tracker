@@ -18,7 +18,8 @@ class BudgetScreen extends ConsumerWidget {
           backgroundColor: Colors.white,
           body: Center(child: CircularProgressIndicator()));
     }
-    final key = ref.watch(monthProvider) ?? ledger.monthKeys.last;
+    final picked = ref.watch(monthProvider);
+    final key = (picked == null || picked <= 0) ? ledger.monthKeys.last : picked;
     final budgets = ref.watch(budgetsProvider);
     final spent = {
       for (final e in Ledger.byCategory(ledger.inMonth(key))) e.key.name: e.value
@@ -43,7 +44,7 @@ class BudgetScreen extends ConsumerWidget {
                 const Text('Budget',
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
             const Spacer(),
-            const MonthPill(),
+            const MonthPill(allowRanges: false),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () => _edit(context, ref),
@@ -148,9 +149,10 @@ class BudgetScreen extends ConsumerWidget {
             color: AppColors.red100, borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      onDismissed: (_) => ref.read(budgetsProvider.notifier).state = {
-        ...budgets
-      }..remove(name),
+      onDismissed: (_) => ref
+          .read(budgetsProvider.notifier)
+          .remove(name)
+          .catchError((_) {}), // the list goes back to the old budgets
       child: GestureDetector(
         onTap: () => _edit(context, ref, cat: name, limit: limit),
         child: Container(
@@ -272,10 +274,11 @@ class BudgetScreen extends ConsumerWidget {
                 onPressed: () {
                   final v = double.tryParse(ctrl.text);
                   if (v == null || v <= 0) return;
-                  ref.read(budgetsProvider.notifier).state = {
-                    ...ref.read(budgetsProvider),
-                    picked: v,
-                  };
+                  final messenger = ScaffoldMessenger.of(context);
+                  ref.read(budgetsProvider.notifier).set(picked, v).catchError((_) {
+                    messenger.showSnackBar(const SnackBar(
+                        content: Text('Could not save the budget.')));
+                  });
                   Navigator.pop(sheet);
                 },
               ),
