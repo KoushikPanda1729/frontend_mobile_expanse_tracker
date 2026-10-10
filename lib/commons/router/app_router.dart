@@ -1,5 +1,6 @@
 import 'package:expensetracker/pages/add_transaction/add_transaction_page.dart';
 import 'package:expensetracker/pages/alarm/alarm_page.dart';
+import 'package:expensetracker/pages/alarm/alarm_ring_page.dart';
 import 'package:expensetracker/pages/analysis/analysis_page.dart';
 import 'package:expensetracker/pages/export/export_page.dart';
 import 'package:expensetracker/pages/import_statement/import_page.dart';
@@ -59,6 +60,11 @@ final goRouter = GoRouter(
       name: 'alarm',
       path: '/alarm',
       builder: (context, state) => const AlarmPage(),
+    ),
+    GoRoute(
+      name: 'alarmRing',
+      path: '/alarm-ring',
+      builder: (context, state) => const AlarmRingPage(),
     ),
     GoRoute(
       name: 'analysis',

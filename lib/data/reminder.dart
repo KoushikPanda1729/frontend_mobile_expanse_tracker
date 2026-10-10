@@ -1,6 +1,10 @@
 import 'package:expensetracker/commons/router/app_router.dart';
 import 'package:expensetracker/data/ledger.dart';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -12,20 +16,66 @@ import 'package:timezone/timezone.dart' as tz;
 
 final _plugin = FlutterLocalNotificationsPlugin();
 
-NotificationDetails _details(bool loud) => NotificationDetails(
+/// Where the alarm opens: a full-screen "time to upload your statement" page with the Import button.
+const alarmRoute = '/alarm-ring';
+
+/// Set when the app was started by tapping the alarm (or by it appearing over the lock screen),
+/// so the splash screen can open the alarm page once the user is signed in.
+String? launchPayload;
+
+const _kharchaViolet = Color(0xFF7F3DFF);
+
+// The status-bar icon is a native resource. If this build does not have it yet (a hot restart cannot add native
+// files), the first notification fails with invalid_icon: fall back to the app icon and try again.
+String _icon = 'ic_stat_kharcha';
+Future<T> _withIconFallback<T>(Future<T> Function() run) async {
+  try {
+    return await run();
+  } on PlatformException catch (e) {
+    if (e.code == 'invalid_icon' && _icon != '@mipmap/ic_launcher') {
+      _icon = '@mipmap/ic_launcher';
+      return await run();
+    }
+    rethrow;
+  }
+}
+const _actionImport = 'import';
+const _actionSnooze = 'snooze';
+
+// v2 channels: Android keeps a channel's sound and importance fixed once created, so changes need a new id.
+NotificationDetails _details(bool loud, {String body = ''}) => NotificationDetails(
       android: AndroidNotificationDetails(
-        loud ? 'month_end_alarm' : 'month_end_quiet',
+        loud ? 'month_end_alarm_v2' : 'month_end_quiet_v2',
         loud ? 'Month-end alarm' : 'Month-end reminder',
+        channelDescription: 'Reminds you to download and import your bank statement',
+        icon: _icon,
+        color: _kharchaViolet,
         importance: loud ? Importance.max : Importance.defaultImportance,
         priority: loud ? Priority.max : Priority.defaultPriority,
-        category: loud ? AndroidNotificationCategory.alarm : null,
+        category: loud ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
+        visibility: NotificationVisibility.public,
+        // the full-screen page: shows over the lock screen and turns the screen on
         fullScreenIntent: loud,
         playSound: loud,
+        // the phone's own alarm tone, at alarm volume, repeating until the user answers
+        sound: loud ? const UriAndroidNotificationSound('content://settings/system/alarm_alert') : null,
+        audioAttributesUsage: loud ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+        additionalFlags: loud ? Int32List.fromList(<int>[4]) : null, // FLAG_INSISTENT
+        enableVibration: true,
+        timeoutAfter: loud ? 120000 : null, // stops by itself after 2 minutes
+        autoCancel: true,
+        styleInformation: BigTextStyleInformation(
+          body.isEmpty ? 'Download your statement from your bank app, then import it here.' : body,
+          contentTitle: 'Time to upload your statement',
+        ),
+        actions: const [
+          AndroidNotificationAction(_actionImport, 'Import now', showsUserInterface: true),
+          AndroidNotificationAction(_actionSnooze, 'Remind in 1 hour', showsUserInterface: true),
+        ],
       ),
       iOS: DarwinNotificationDetails(
         presentSound: loud,
-        interruptionLevel:
-            loud ? InterruptionLevel.timeSensitive : InterruptionLevel.passive,
+        interruptionLevel: loud ? InterruptionLevel.timeSensitive : InterruptionLevel.passive,
       ),
     );
 
@@ -38,7 +88,7 @@ Future<void> initReminders() async {
     } catch (_) {} // falls back to UTC; times may be off by the UTC offset
     await _plugin.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'), // always exists; each notification sets its own small icon
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
@@ -46,10 +96,22 @@ Future<void> initReminders() async {
         ),
       ),
       onDidReceiveNotificationResponse: (r) {
-        final path = r.payload;
-        if (path != null) goRouter.push(path);
+        if (r.actionId == _actionSnooze) {
+          snoozeOneHour();
+        } else if (r.actionId == _actionImport) {
+          goRouter.push('/import');
+        } else {
+          final path = r.payload;
+          if (path != null) goRouter.push(path);
+        }
       },
     );
+    // the alarm itself started the app (screen off or app closed): remember where to go
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      final response = launch!.notificationResponse;
+      launchPayload = response?.actionId == _actionImport ? '/import' : (response?.payload ?? alarmRoute);
+    }
   } catch (e) {
     debugPrint('reminder init failed: $e');
   }
@@ -69,6 +131,7 @@ Future<bool> _askPermission() async {
     // Android 12+: exact alarms need their own permission. Without it the alarm
     // still rings, only a few minutes late.
     await android?.requestExactAlarmsPermission();
+    await android?.requestFullScreenIntentPermission(); // Android 14: lets the alarm show over the lock screen
     return granted;
   } catch (_) {
     return false;
@@ -100,6 +163,10 @@ DateTime? nextAlarm(ReminderState r, DateTime now) {
   return null;
 }
 
+/// The month whose statement the alarm asks for: the month just ended when it rings on the 1st, else the current one.
+String statementMonthName(ReminderState r, DateTime at) =>
+    r.dayMode == 1 ? monthNames[(at.month + 10) % 12] : monthNames[at.month - 1];
+
 String _body(ReminderState r, DateTime at) {
   // on the 1st the statement to fetch is last month's
   final month = r.dayMode == 1
@@ -119,17 +186,17 @@ Future<void> scheduleMonthEnd(ReminderState r) async {
       final at = tz.TZDateTime(
           tz.local, m.year, m.month, _alarmDay(r, m), r.hour, r.minute);
       if (at.isAfter(now)) {
-        Future<void> put(AndroidScheduleMode mode) => _plugin.zonedSchedule(
+        Future<void> put(AndroidScheduleMode mode) => _withIconFallback(() => _plugin.zonedSchedule(
               id,
-              'Statement time',
+              'Time to upload your statement',
               _body(r, at),
               at,
-              _details(r.loud),
-              payload: '/import',
+              _details(r.loud, body: 'Download your ${statementMonthName(r, at)} statement from your bank app, then import it here.'),
+              payload: alarmRoute,
               androidScheduleMode: mode,
               uiLocalNotificationDateInterpretation:
                   UILocalNotificationDateInterpretation.absoluteTime,
-            );
+            ));
         try {
           await put(r.loud
               ? AndroidScheduleMode.exactAllowWhileIdle
@@ -151,15 +218,47 @@ Future<void> scheduleMonthEnd(ReminderState r) async {
 Future<void> sendTestAlarm(ReminderState r) async {
   try {
     await _askPermission(); // a test needs the permission too, even before the alarm is turned on
-    await _plugin.show(99, 'Statement time', _body(r, DateTime.now()),
-        _details(r.loud),
-        payload: '/import');
+    await _withIconFallback(() => _plugin.show(99, 'Time to upload your statement', _body(r, DateTime.now()),
+        _details(r.loud,
+            body: 'Download your ${statementMonthName(r, DateTime.now())} statement from your bank app, then import it here.'),
+        payload: alarmRoute));
   } catch (e) {
     debugPrint('test alarm failed: $e');
   }
 }
 
 // ---------- reminder settings + state ----------
+
+/// Silences the alarm that is ringing right now (cancels shown notifications; the coming months stay scheduled).
+Future<void> stopRinging() async {
+  try {
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final active = await android?.getActiveNotifications() ?? const <ActiveNotification>[];
+    for (final n in active) {
+      if (n.id != null) await _plugin.cancel(n.id!);
+    }
+  } catch (_) {}
+}
+
+/// "Remind in 1 hour": the same alarm once more, in an hour.
+Future<void> snoozeOneHour() async {
+  try {
+    final at = tz.TZDateTime.now(tz.local).add(const Duration(hours: 1));
+    await _plugin.cancel(98);
+    await _withIconFallback(() => _plugin.zonedSchedule(
+          98,
+          'Time to upload your statement',
+          'Reminder: import your bank statement',
+          at,
+          _details(true),
+          payload: alarmRoute,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        ));
+  } catch (e) {
+    debugPrint('snooze failed: $e');
+  }
+}
 
 class ReminderState {
   final bool enabled;

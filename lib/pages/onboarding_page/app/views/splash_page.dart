@@ -1,6 +1,8 @@
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_info.dart';
+import 'package:expensetracker/commons/router/app_router.dart';
 import 'package:expensetracker/data/auth.dart';
+import 'package:expensetracker/data/reminder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +29,12 @@ class SplashPageState extends ConsumerState<SplashPage>
       final signedIn = await ref.read(authProvider.future);
       if (mounted) {
         context.go(signedIn ? '/' : '/onboarding');
+        // the app was opened by the alarm (lock screen or tap): show the alarm page over Home
+        final route = launchPayload;
+        launchPayload = null;
+        if (signedIn && route != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => goRouter.push(route));
+        }
       }
     });
   }

@@ -11,6 +11,10 @@ const monthNames = [
   'August', 'September', 'October', 'November', 'December',
 ];
 
+/// Monday .. Sunday for a date.
+String weekdayName(DateTime d) =>
+    const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][d.weekday - 1];
+
 class Category {
   final String name;
   final String icon;
