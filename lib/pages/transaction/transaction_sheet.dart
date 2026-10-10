@@ -3,6 +3,7 @@ import 'package:expensetracker/commons/components/button/app/solid_button_widget
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
+import 'package:expensetracker/data/payment_methods.dart';
 import 'package:expensetracker/pages/review/review_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -188,6 +189,7 @@ Future<void> showEditTransactionSheet(BuildContext context, WidgetRef ref, Txn t
   final label = TextEditingController(text: t.label ?? '');
   final note = TextEditingController(text: t.note ?? '');
   var category = t.category.name;
+  var method = t.mode; // only changeable for entries made by hand
   var date = t.date;
   var busy = false;
   var applyAll = false; // also move the other payments to this merchant
@@ -312,6 +314,23 @@ Future<void> showEditTransactionSheet(BuildContext context, WidgetRef ref, Txn t
                           value: applyAll,
                           onChanged: (v) => setS(() => applyAll = v ?? false),
                         ),
+                      if (t.statementId == null) ...[
+                        title('Paid via'),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final m in methodsFor(isIncome: t.isIncome, isTransfer: t.category.name == 'Transfer'))
+                              chip(m.mode, method == m.mode, () => setS(() => method = m.mode)),
+                          ],
+                        ),
+                        if (!methodInBank(method))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text('Not on a bank statement, so it does not change your bank balance.',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12.5)),
+                          ),
+                      ],
                       title('Label'),
                       Wrap(
                         spacing: 6,
@@ -377,7 +396,7 @@ Future<void> showEditTransactionSheet(BuildContext context, WidgetRef ref, Txn t
                                     Txn(
                                       date: DateTime(date.year, date.month, date.day),
                                       merchant: merchant.text.trim(),
-                                      mode: t.mode,
+                                      mode: method,
                                       category: categoryByName(category),
                                       amount: amt,
                                       isIncome: t.isIncome,

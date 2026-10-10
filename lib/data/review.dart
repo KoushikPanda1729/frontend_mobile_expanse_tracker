@@ -1,3 +1,4 @@
+import 'package:expensetracker/data/analytics.dart' show ymd;
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,10 +95,23 @@ class Review {
   }
 }
 
-/// GET /analytics/review. Reloads when the ledger changes (import, edit, delete, label).
-final reviewProvider = FutureProvider.autoDispose<Review>((ref) async {
+/// GET /analytics/review for a date range ((null, null) = everything). Reloads when the ledger changes.
+final reviewProvider =
+    FutureProvider.autoDispose.family<Review, (String?, String?)>((ref, range) async {
   ref.watch(ledgerProvider);
-  return Review.fromApi(await api.get('/analytics/review') as Map<String, dynamic>);
+  return Review.fromApi(await api.get('/analytics/review', query: {
+    if (range.$1 != null) 'from': range.$1!,
+    if (range.$2 != null) 'to': range.$2!,
+  }) as Map<String, dynamic>);
+});
+
+/// The review for the period picked in the month pill (shared with Home and Transactions).
+final reviewForPeriodProvider = Provider.autoDispose<AsyncValue<Review>>((ref) {
+  final ledger = ref.watch(ledgerProvider).valueOrNull;
+  final picked = ref.watch(monthProvider);
+  final key = picked ?? (ledger?.monthKeys.last ?? Ledger.allTime);
+  final r = ledger?.rangeOf(key);
+  return ref.watch(reviewProvider(r == null ? (null, null) : (ymd(r.$1), ymd(r.$2))));
 });
 
 /// "I know this payee": remembers it, moves its payments to [category] and applies to later imports.

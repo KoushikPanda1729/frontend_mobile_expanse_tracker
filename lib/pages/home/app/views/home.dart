@@ -5,6 +5,7 @@ import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:expensetracker/data/analysis.dart' show weekdayNames;
 import 'package:expensetracker/data/analytics.dart';
+import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/pages/transaction/transaction_sheet.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/reminder.dart';
@@ -84,7 +85,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               }),
         ),
         Expanded(
-          child: SingleChildScrollView(
+          child: RefreshIndicator(
+            color: AppColors.violet100,
+            backgroundColor: Colors.white,
+            displacement: 56,
+            triggerMode: RefreshIndicatorTriggerMode.anywhere, // starts from anywhere on the page, not only the very top
+            onRefresh: _refresh,
+            child: SingleChildScrollView(
+            // always scrollable, so pulling down works even when the content is short (an empty account)
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -114,9 +123,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
+          ),
         ),
       ],
     );
+  }
+
+  /// Pull down to reload: the transactions, and every number built from them.
+  Future<void> _refresh() async {
+    ref.invalidate(reviewProvider);
+    ref.invalidate(balanceProvider);
+    ref.invalidate(seriesProvider);
+    ref.invalidate(budgetsProvider);
+    String message = 'Up to date';
+    try {
+      await ref.read(ledgerProvider.notifier).refresh();
+    } catch (e) {
+      message = e is ApiException ? e.message : 'Could not refresh.';
+    }
+    if (!mounted) return;
+    // the reload is quick and the numbers are usually the same, so say it happened
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 1400)));
   }
 
   /// Slim reminder under the balance card: statement due, or set up the month-end alarm.
@@ -201,7 +230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// "N payments to check": shown when the review has something the app cannot explain.
   Widget _reviewBanner() {
-    final r = ref.watch(reviewProvider).valueOrNull;
+    final r = ref.watch(reviewProvider((null, null))).valueOrNull; // everything, whatever month is picked
     if (r == null || r.count == 0) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 12),

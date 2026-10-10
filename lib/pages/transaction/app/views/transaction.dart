@@ -96,11 +96,41 @@ class TransactionScreen extends ConsumerWidget {
     for (final t in txns) {
       byDay.putIfAbsent(t.date, () => []).add(t);
     }
+    Future<void> refresh() async {
+      var message = 'Up to date';
+      try {
+        await ref.read(ledgerProvider.notifier).refresh();
+      } catch (_) {
+        message = 'Could not refresh'; // keep what is shown
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 1400)));
+    }
+
+    // pulling down reloads the list; the empty state is a list too, so it can be pulled
     if (txns.isEmpty) {
-      return const Expanded(child: Center(child: Text('No transactions')));
+      return Expanded(
+        child: RefreshIndicator(
+          color: AppColors.violet100,
+          onRefresh: refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(height: 120),
+              Center(child: Text('No transactions')),
+            ],
+          ),
+        ),
+      );
     }
     return Expanded(
-      child: ListView(
+      child: RefreshIndicator(
+        color: AppColors.violet100,
+        onRefresh: refresh,
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 16),
         children: [
           for (final e in byDay.entries)
@@ -124,6 +154,7 @@ class TransactionScreen extends ConsumerWidget {
               ],
             ]),
         ],
+      ),
       ),
     );
   }

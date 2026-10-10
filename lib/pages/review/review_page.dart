@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/month_pill/month_pill.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/data/ledger.dart';
 import 'package:expensetracker/data/review.dart';
@@ -14,7 +15,7 @@ class ReviewPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final review = ref.watch(reviewProvider);
+    final review = ref.watch(reviewForPeriodProvider);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -26,19 +27,30 @@ class ReviewPage extends ConsumerWidget {
         title: const Text('Check your money', style: TextStyle(fontWeight: FontWeight.w700)),
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/')),
       ),
-      body: review.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Could not load\n$e', textAlign: TextAlign.center),
-              TextButton(
-                  onPressed: () => ref.invalidate(reviewProvider), child: const Text('Retry')),
-            ],
+      body: Column(
+        children: [
+          // the same period filter as Home and Transactions
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(alignment: Alignment.centerLeft, child: MonthPill()),
           ),
-        ),
-        data: (r) => r.count == 0 ? _allClear() : _list(context, ref, r),
+          Expanded(
+            child: review.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Could not load\n$e', textAlign: TextAlign.center),
+                    TextButton(
+                        onPressed: () => ref.invalidate(reviewProvider), child: const Text('Retry')),
+                  ],
+                ),
+              ),
+              data: (r) => r.count == 0 ? _allClear() : _list(context, ref, r),
+            ),
+          ),
+        ],
       ),
     );
   }

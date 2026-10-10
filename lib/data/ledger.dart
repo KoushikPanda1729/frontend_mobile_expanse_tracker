@@ -51,6 +51,7 @@ class Txn {
   final String? upiId; // UPI id or phone number of the other side
   final String? bank; // bank code of the other side
   final String? description; // what the bank printed
+  final String? statementId; // null = entered by hand
   final String? note; // the user's own comment
   final String? label; // the user's own tag
 
@@ -66,6 +67,7 @@ class Txn {
     this.upiId,
     this.bank,
     this.description,
+    this.statementId,
     this.note,
     this.label,
   });
@@ -82,6 +84,7 @@ class Txn {
         upiId: j['upiId'] as String?,
         bank: j['bank'] as String?,
         description: j['description'] as String?,
+        statementId: j['statementId'] as String?,
         note: j['note'] as String?,
         label: j['label'] as String?,
       );
@@ -120,6 +123,14 @@ class Ledger {
     final last = all.last.date;
     final start = DateTime(last.year, last.month + key + 1, 1);
     return all.where((t) => !t.date.isBefore(start)).toList();
+  }
+
+  /// First and last day of a period key (a month, [allTime] or the last N months). null = everything.
+  (DateTime, DateTime)? rangeOf(int key) {
+    if (key == allTime || all.isEmpty) return null;
+    if (key > 0) return (DateTime(key ~/ 100, key % 100, 1), DateTime(key ~/ 100, key % 100 + 1, 0));
+    final last = all.last.date;
+    return (DateTime(last.year, last.month + key + 1, 1), DateTime(last.year, last.month + 1, 0));
   }
 
   /// Balance at the end of a month, or at the newest transaction for a range.
@@ -204,6 +215,7 @@ class LedgerNotifier extends AsyncNotifier<Ledger> {
       'isIncome': t.isIncome,
       'mode': t.mode,
       if (t.label != null) 'label': t.label,
+      if (t.note != null) 'note': t.note,
     });
     await refresh();
   }
@@ -217,6 +229,7 @@ class LedgerNotifier extends AsyncNotifier<Ledger> {
       'amount': t.amount,
       'note': t.note ?? '', // an empty string clears it
       'label': t.label ?? '',
+      if (t.mode.isNotEmpty) 'mode': t.mode,
     });
     await refresh();
   }

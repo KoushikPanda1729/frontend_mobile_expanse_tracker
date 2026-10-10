@@ -6,6 +6,7 @@ import 'package:expensetracker/commons/constants/app_colors.dart';
 import 'package:expensetracker/commons/constants/app_icons.dart';
 import 'package:expensetracker/data/api.dart';
 import 'package:expensetracker/data/ledger.dart';
+import 'package:expensetracker/data/payment_methods.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,11 +28,16 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   final _amount = TextEditingController();
   String _note = '', _to = '';
   late String _category = _cats.first.name;
-  String _account = 'Bank'; // where the money moved: Bank, Cash or Wallet
+  late String _method = _methods.first.mode; // UPI, Card, Net banking, Cash, ...
+  String? _tag; // optional tag: Friend, Rent, ...
+  final _memo = TextEditingController(); // optional note
   DateTime _date = DateTime.now();
   // payees the user already labelled ("I know this payee"): their category is filled in when the name matches
   final Map<String, ({String category, String? label})> _rules = {};
   String? _ruleHint;
+
+  List<PayMethod> get _methods => methodsFor(
+      isIncome: widget.kind == TxnKind.income, isTransfer: widget.kind == TxnKind.transfer);
 
   List<Category> get _cats =>
       widget.kind == TxnKind.income ? incomeCategories : expenseCategories;
@@ -87,6 +93,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   @override
   void dispose() {
     _amount.dispose();
+    _memo.dispose();
     super.dispose();
   }
 
@@ -112,12 +119,13 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
       await ref.read(ledgerProvider.notifier).add(Txn(
             date: _day(_date),
             merchant: who.trim().isEmpty ? cat.name : who.trim(),
-            // Cash and Wallet payments are never on a bank statement, so the import does not try to match them
-          mode: _account == 'Bank' ? 'Manual' : _account,
+            // Cash and Wallet are never on a bank statement, so the import does not try to match them
+            mode: _method,
             category: cat,
             amount: amt,
             isIncome: widget.kind == TxnKind.income,
-          label: isTransfer ? null : _rules[_note.trim().toLowerCase()]?.label,
+            label: _tag ?? (isTransfer ? null : _rules[_note.trim().toLowerCase()]?.label),
+            note: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
           ));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
@@ -278,7 +286,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                               AlphaNumericTextfieldWidget(
                                 onTextChanged: (v) => _to = v,
                                 labelText: '',
-                                hintText: 'e.g. Arjun',
+                                hintText: 'e.g. Arjun, a friend',
                               ),
                             ] else ...[
                               _label('Category'),
@@ -296,22 +304,20 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                                         width: 15,
                                         height: 15,
                                         colorFilter: ColorFilter.mode(
-                                          _category == c.name
-                                              ? Colors.white
-                                              : c.color,
+                                          _category == c.name ? Colors.white : c.color,
                                           BlendMode.srcIn,
                                         ),
                                       ),
                                     ),
                                 ],
                               ),
-                              _label('Name or description'),
+                              _label(widget.kind == TxnKind.income ? 'Received from' : 'Paid to'),
                               AlphaNumericTextfieldWidget(
                                 onTextChanged: _onName,
                                 labelText: '',
                                 hintText: widget.kind == TxnKind.income
-                                    ? 'e.g. salary, from a friend'
-                                    : 'e.g. lunch, recharge',
+                                    ? 'e.g. employer, a friend'
+                                    : 'e.g. Zomato, grocery shop, Ramesh',
                               ),
                               if (_ruleHint != null)
                                 Padding(
@@ -332,55 +338,74 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                             Wrap(
                               spacing: 8,
                               children: [
-                                _chip('Today', _isToday,
-                                    () => setState(() => _date = DateTime.now())),
+                                _chip('Today', _isToday, () => setState(() => _date = DateTime.now())),
+                                _chip('Yesterday', _isYesterday,
+                                    () => setState(() => _date = DateTime.now().subtract(const Duration(days: 1)))),
                                 _chip(
-                                    'Yesterday',
-                                    _isYesterday,
-                                    () => setState(() => _date = DateTime.now()
-                                        .subtract(const Duration(days: 1)))),
-                                _chip(
-                                  _isToday || _isYesterday
-                                      ? 'Pick date'
-                                      : '${shortDate(_date)} ${_date.year}',
+                                  _isToday || _isYesterday ? 'Pick date' : '${shortDate(_date)} ${_date.year}',
                                   !(_isToday || _isYesterday),
                                   _pickDate,
                                   leading: Icon(
                                     Icons.calendar_today_outlined,
                                     size: 14,
-                                    color: !(_isToday || _isYesterday)
-                                        ? Colors.white
-                                        : AppColors.dark50,
+                                    color: !(_isToday || _isYesterday) ? Colors.white : AppColors.dark50,
                                   ),
                                 ),
                               ],
                             ),
-                            _label(widget.kind == TxnKind.income ? 'Received in' : 'Paid from'),
+                            _label(switch (widget.kind) {
+                              TxnKind.income => 'Received via',
+                              TxnKind.transfer => 'Transferred via',
+                              TxnKind.expense => 'Paid via',
+                            }),
                             Wrap(
                               spacing: 8,
+                              runSpacing: 8,
                               children: [
-                                for (final a in const [
-                                  ('Bank', Icons.account_balance_outlined),
-                                  ('Cash', Icons.payments_outlined),
-                                  ('Wallet', Icons.account_balance_wallet_outlined),
-                                ])
+                                for (final m in _methods)
                                   _chip(
-                                    a.$1 == 'Bank' ? 'Bank account' : a.$1,
-                                    _account == a.$1,
-                                    () => setState(() => _account = a.$1),
-                                    leading: Icon(a.$2,
-                                        size: 15,
-                                        color: _account == a.$1 ? Colors.white : AppColors.dark50),
+                                    m.mode,
+                                    _method == m.mode,
+                                    () => setState(() => _method = m.mode),
+                                    leading: Icon(m.icon,
+                                        size: 15, color: _method == m.mode ? Colors.white : AppColors.dark50),
                                   ),
                               ],
                             ),
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                _account == 'Bank'
-                                    ? 'Matched with your bank statement when you import it.'
-                                    : 'Not on a bank statement, so it is never matched or merged.',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 12.5),
+                                methodInBank(_method)
+                                    ? 'Shows on your bank statement, so it is matched when you import it.'
+                                    : 'Not on a bank statement, so it is never matched, and it does not change your bank balance.',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12.5, height: 1.35),
+                              ),
+                            ),
+                            _label('Tag (optional)'),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final t in txnTags)
+                                  _chip(t, _tag == t, () => setState(() => _tag = _tag == t ? null : t)),
+                              ],
+                            ),
+                            _label('Note (optional)'),
+                            TextField(
+                              controller: _memo,
+                              minLines: 1,
+                              maxLines: 3,
+                              maxLength: 500,
+                              textCapitalization: TextCapitalization.sentences,
+                              decoration: InputDecoration(
+                                hintText: 'e.g. lent for a bus ticket, returns Friday',
+                                counterText: '',
+                                filled: true,
+                                fillColor: Colors.grey.withOpacity(0.06),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
