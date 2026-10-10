@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:expensetracker/commons/components/button/domain/entities/button_entity.dart';
 import 'package:expensetracker/commons/text/app/views/custom_text_library.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +7,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 abstract class BaseButtonWidget extends StatelessWidget {
   final ButtonEntity buttonEntity;
-  final VoidCallback? onPressed;
+  /// May return a Future: the button then shows a spinner and ignores taps until it completes.
+  final FutureOr<void> Function()? onPressed;
   final bool isLoading;
 
   const BaseButtonWidget({

@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+bool _loggingOut = false;
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -171,8 +173,14 @@ class ProfileScreen extends ConsumerWidget {
                             iconColor: AppColors.red100,
                             isLogout: true,
                             onTap: () async {
-                              await ref.read(authProvider.notifier).logout();
-                              if (context.mounted) context.go('/onboarding');
+                              if (_loggingOut) return; // a second tap while signing out does nothing
+                              _loggingOut = true;
+                              try {
+                                await ref.read(authProvider.notifier).logout();
+                                if (context.mounted) context.go('/onboarding');
+                              } finally {
+                                _loggingOut = false;
+                              }
                             },
                           ),
                         ],

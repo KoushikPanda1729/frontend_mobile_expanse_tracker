@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/button/app/async_tap.dart';
 import 'package:expensetracker/commons/components/button/app/base_button_widget.dart';
 import 'package:expensetracker/commons/components/button/domain/entities/button_entity.dart';
 import 'package:flutter/material.dart';
@@ -29,9 +30,10 @@ class OutlineButtonWidget extends BaseButtonWidget {
         ));
   @override
   Widget buildButtonContent(BuildContext context) {
-    return GestureDetector(
-      onTap: buttonEntity.isEnabled ? onPressed : null,
-      child: Container(
+    return AsyncTap(
+      enabled: buttonEntity.isEnabled,
+      onTap: onPressed,
+      builder: (context, busy) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           border: Border.all(
@@ -49,8 +51,8 @@ class OutlineButtonWidget extends BaseButtonWidget {
             child: Row(
               // mainAxisSize: MainAxisSize.min,
               children: [
-                if (isLoading)
-                  buildLoadingIndicator()
+                if (isLoading || busy)
+                  buildLoadingIndicator(color: Theme.of(context).primaryColor)
                 else ...[
                   if (buttonEntity.isLeadingIcon) buildIcon(),
                   if (buttonEntity.iconPath != null && buttonEntity.label != '')

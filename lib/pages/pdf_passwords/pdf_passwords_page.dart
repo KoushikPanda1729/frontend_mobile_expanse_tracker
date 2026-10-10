@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+bool _pdfBusy = false; // one request at a time
+
 class SavedPassword {
   final String id, label;
   final DateTime? lastUsedAt;
@@ -77,6 +79,8 @@ class PdfPasswordsPage extends ConsumerWidget {
       messenger.showSnackBar(const SnackBar(content: Text('Enter a name and a password')));
       return;
     }
+    if (_pdfBusy) return;
+    _pdfBusy = true;
     try {
       if (p == null) {
         await api.post('/pdf-passwords', body: {'label': name, 'password': pw.text});
@@ -89,6 +93,8 @@ class PdfPasswordsPage extends ConsumerWidget {
       ref.invalidate(pdfPasswordsProvider);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(_err(e))));
+    } finally {
+      _pdfBusy = false;
     }
   }
 
@@ -107,12 +113,15 @@ class PdfPasswordsPage extends ConsumerWidget {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || _pdfBusy) return;
+    _pdfBusy = true;
     try {
       await api.delete('/pdf-passwords/${p.id}');
       ref.invalidate(pdfPasswordsProvider);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(_err(e))));
+    } finally {
+      _pdfBusy = false;
     }
   }
 

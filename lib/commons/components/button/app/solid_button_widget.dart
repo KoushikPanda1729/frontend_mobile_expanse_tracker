@@ -1,3 +1,4 @@
+import 'package:expensetracker/commons/components/button/app/async_tap.dart';
 import 'package:expensetracker/commons/components/button/app/base_button_widget.dart';
 import 'package:expensetracker/commons/components/button/domain/entities/button_entity.dart';
 import 'package:expensetracker/commons/constants/app_colors.dart';
@@ -29,14 +30,16 @@ class SolidButtonWidget extends BaseButtonWidget {
 
   @override
   Widget buildButtonContent(BuildContext context) {
-    return GestureDetector(
-      onTap: buttonEntity.isEnabled ? onPressed : null,
-      child: Container(
+    return AsyncTap(
+      enabled: buttonEntity.isEnabled,
+      onTap: onPressed,
+      builder: (context, busy) => Container(
         height: 56.0,
         decoration: BoxDecoration(
-          color: buttonEntity.isEnabled
+          // greyed while a request is running, like a disabled button
+          color: buttonEntity.isEnabled && !busy
               ? backgroundColor
-              : backgroundColor?.withOpacity(0.5),
+              : backgroundColor?.withOpacity(0.55),
             borderRadius: BorderRadius.circular(
             buttonEntity.isCircle! ? 28.0 : 8.0,
           ),
@@ -46,7 +49,7 @@ class SolidButtonWidget extends BaseButtonWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (isLoading)
+                if (isLoading || busy)
                   buildLoadingIndicator()
                 else ...[
                   if (buttonEntity.isLeadingIcon) buildIcon(),

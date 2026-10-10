@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+bool _deleting = false; // one delete at a time
+
 const _shape = RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)));
 
@@ -124,6 +126,9 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                         label: const Text('Delete',
                             style: TextStyle(color: AppColors.red100)),
                         onPressed: () async {
+                          if (_deleting) return;
+                          _deleting = true;
+                          try {
                           final ok = await showAppSheet<bool>(
                             context: sheet,
                             builder: (d) => SheetFrame(
@@ -150,6 +155,9 @@ void showTransactionSheet(BuildContext context, WidgetRef ref, Txn t) {
                                 const SnackBar(content: Text('Transaction deleted')));
                           } catch (e) {
                             messenger.showSnackBar(SnackBar(content: Text(_err(e))));
+                          }
+                          } finally {
+                            _deleting = false;
                           }
                         },
                       ),

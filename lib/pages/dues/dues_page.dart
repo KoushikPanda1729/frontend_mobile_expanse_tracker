@@ -316,13 +316,19 @@ class _DuesPageState extends ConsumerState<DuesPage> {
     );
   }
 
+  bool _working = false; // one request at a time: a repeated tap is ignored until the first finishes
+
   Future<void> _run(Future<void> Function() job, String done) async {
+    if (_working) return;
+    _working = true;
     try {
       await job();
       ref.invalidate(duesProvider);
       if (mounted) _say(done);
     } catch (e) {
       if (mounted) _say(_err(e));
+    } finally {
+      _working = false;
     }
   }
 

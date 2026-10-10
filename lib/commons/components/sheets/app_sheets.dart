@@ -11,7 +11,15 @@ const _sheetShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)));
 
 /// A rounded bottom sheet that rises above the keyboard and stays below the status bar.
+DateTime? _lastSheetOpened;
+
 Future<T?> showAppSheet<T>({required BuildContext context, required WidgetBuilder builder}) {
+  // a double tap on the button that opens a sheet must not open it twice
+  final now = DateTime.now();
+  if (_lastSheetOpened != null && now.difference(_lastSheetOpened!) < const Duration(milliseconds: 450)) {
+    return Future.value(null);
+  }
+  _lastSheetOpened = now;
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
@@ -34,7 +42,7 @@ class SheetFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -74,6 +82,14 @@ class SheetFrame extends StatelessWidget {
         else
           SafeArea(top: false, child: const SizedBox(height: 8)),
       ],
+    );
+    // once the sheet starts closing, its buttons ignore taps: a second tap cannot save or delete again
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null) return body;
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) => IgnorePointer(ignoring: animation.status == AnimationStatus.reverse, child: child),
+      child: body,
     );
   }
 }

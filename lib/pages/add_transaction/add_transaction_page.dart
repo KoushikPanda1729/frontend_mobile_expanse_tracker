@@ -105,7 +105,20 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     setState(() {});
   }
 
+  bool _saving = false;
+
+  /// One save at a time: the button shows a spinner and ignores taps until the entry is saved.
   Future<void> _save() async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      await _doSave();
+    } finally {
+      _saving = false;
+    }
+  }
+
+  Future<void> _doSave() async {
     final amt = double.tryParse(_amount.text.trim());
     final messenger = ScaffoldMessenger.of(context);
     if (amt == null || amt <= 0) {
