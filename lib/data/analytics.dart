@@ -18,6 +18,53 @@ final summaryProvider = FutureProvider.autoDispose
   return (j['transactionCount'] as int) == 0 ? null : Analysis.fromSummary(j);
 });
 
+/// The real account balance (GET /analytics/account): the SBI header balance of the newest statement,
+/// plus anything dated after it.
+class AccountInfo {
+  final double balance;
+  final DateTime? asOf;
+  final bool fromHeader; // the bank's own "Balance as on" figure
+  final double? untrackedAmount; // money that moved after the last statement and is not imported yet
+  final DateTime? untrackedFrom, untrackedTo;
+  final List<(DateTime, DateTime)> gaps; // between two statements that do not join up
+  final int statementCount;
+  const AccountInfo({
+    required this.balance,
+    required this.asOf,
+    required this.fromHeader,
+    required this.untrackedAmount,
+    required this.untrackedFrom,
+    required this.untrackedTo,
+    required this.gaps,
+    required this.statementCount,
+  });
+
+  factory AccountInfo.fromApi(Map<String, dynamic> j) {
+    final u = j['untracked'] as Map<String, dynamic>?;
+    return AccountInfo(
+      balance: (j['balance'] as num).toDouble(),
+      asOf: j['asOf'] == null ? null : DateTime.parse(j['asOf'] as String),
+      fromHeader: j['source'] == 'statement-header',
+      untrackedAmount: (u?['amount'] as num?)?.toDouble(),
+      untrackedFrom: u == null ? null : DateTime.parse(u['from'] as String),
+      untrackedTo: u == null ? null : DateTime.parse(u['to'] as String),
+      gaps: [
+        for (final g in j['gaps'] as List)
+          (
+            DateTime.parse((g as Map<String, dynamic>)['from'] as String),
+            DateTime.parse(g['to'] as String)
+          )
+      ],
+      statementCount: j['statementCount'] as int,
+    );
+  }
+}
+
+final accountProvider = FutureProvider.autoDispose<AccountInfo>((ref) async {
+  ref.watch(ledgerProvider);
+  return AccountInfo.fromApi(await api.get('/analytics/account') as Map<String, dynamic>);
+});
+
 /// GET /analytics/balance: account balance at the end of [asOf] (YYYY-MM-DD).
 final balanceProvider =
     FutureProvider.autoDispose.family<double, String>((ref, asOf) async {

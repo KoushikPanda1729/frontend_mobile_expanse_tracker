@@ -206,7 +206,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// Balance at the end of the month, from GET /analytics/balance (added up here until it loads).
+  /// Balance at the end of the chosen month (or the newest transaction for a range), from GET /analytics/balance.
+  /// It is added up here until the server answers.
   double _balance(Ledger l, int key) {
     final local = l.balanceAtEnd(key);
     if (l.all.isEmpty) return local;
@@ -411,7 +412,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     fontSize: 38,
                     fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Row(
             children: [
               pill('Income', income, Icons.south_west, '/income'),
@@ -419,6 +420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               pill('Expenses', expense, Icons.north_east, '/expenses'),
             ],
           ),
+
         ],
       ),
     );
@@ -692,7 +694,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               iconColor: t.category.color,
               isIncome: t.isIncome,
               title: t.merchant,
-              description: '${t.category.name} · ${t.mode}',
+              description: t.subtitle,
               amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
               onTap: () => showTransactionSheet(context, ref, t),
             ),
@@ -746,7 +748,7 @@ Widget buildRecentTransactions(BuildContext context, WidgetRef ref, List<Txn> mo
           iconColor: t.category.color,
           isIncome: t.isIncome,
           title: t.merchant,
-          description: '${t.category.name} · ${t.mode}',
+          description: t.subtitle,
           time: shortDate(t.date),
           amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
           onTap: () => showTransactionSheet(context, ref, t),

@@ -79,7 +79,7 @@ class TransactionScreen extends ConsumerWidget {
                 onChanged: (q) => ref.read(filterProvider.notifier).state =
                     ref.read(filterProvider).withQuery(q),
                 decoration: InputDecoration(
-                  hintText: 'Search merchant or category',
+                  hintText: 'Search name, category, label or note',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.grey.withOpacity(0.08),
@@ -142,7 +142,7 @@ class TransactionScreen extends ConsumerWidget {
                   iconColor: t.category.color,
                   isIncome: t.isIncome,
                   title: t.merchant,
-                  description: '${t.category.name} · ${t.mode}',
+                  description: t.subtitle,
                   amount: '${t.isIncome ? '+' : '-'} ${inr(t.amount)}',
                   onTap: () => showTransactionSheet(context, ref, t),
                 ),

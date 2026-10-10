@@ -51,6 +51,8 @@ class Txn {
   final String? upiId; // UPI id or phone number of the other side
   final String? bank; // bank code of the other side
   final String? description; // what the bank printed
+  final String? note; // the user's own comment
+  final String? label; // the user's own tag
 
   const Txn({
     this.id,
@@ -64,6 +66,8 @@ class Txn {
     this.upiId,
     this.bank,
     this.description,
+    this.note,
+    this.label,
   });
 
   factory Txn.fromApi(Map<String, dynamic> j) => Txn(
@@ -78,7 +82,12 @@ class Txn {
         upiId: j['upiId'] as String?,
         bank: j['bank'] as String?,
         description: j['description'] as String?,
+        note: j['note'] as String?,
+        label: j['label'] as String?,
       );
+
+  /// "Shopping · UPI · Lent": what a list row shows under the name.
+  String get subtitle => [category.name, if (mode.isNotEmpty) mode, if (label != null) label!].join(' · ');
 
   /// The UPI id when it is a mobile number.
   String? get phone => upiId != null && RegExp(r'^[6-9]\d{9}$').hasMatch(upiId!) ? upiId : null;
@@ -202,6 +211,8 @@ class LedgerNotifier extends AsyncNotifier<Ledger> {
       'merchant': t.merchant,
       'category': t.category.name,
       'amount': t.amount,
+      'note': t.note ?? '', // an empty string clears it
+      'label': t.label ?? '',
     });
     await refresh();
   }
@@ -299,7 +310,9 @@ class TxnFilter {
             (categories.isEmpty || categories.contains(t.category.name)) &&
             (q.isEmpty ||
                 t.merchant.toLowerCase().contains(q) ||
-                t.category.name.toLowerCase().contains(q)))
+                t.category.name.toLowerCase().contains(q) ||
+                (t.label ?? '').toLowerCase().contains(q) ||
+                (t.note ?? '').toLowerCase().contains(q)))
         .toList();
     switch (sort) {
       case 'Highest':
