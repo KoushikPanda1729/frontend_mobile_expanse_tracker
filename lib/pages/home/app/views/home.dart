@@ -79,20 +79,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Row(
                 children: [
                   const MonthPill(),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => context.push('/import'),
-                    child: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: AppColors.violet100.withOpacity(0.4)),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.upload_file,
-                          size: 20, color: AppColors.violet100),
-                    ),
-                  ),
                 ],
               ),
               onTap: () {

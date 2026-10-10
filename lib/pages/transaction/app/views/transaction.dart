@@ -40,31 +40,6 @@ class TransactionScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     const MonthPill(),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => context.push('/import'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 9),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                              color: AppColors.violet100.withOpacity(0.4)),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.upload_file,
-                                size: 18, color: AppColors.violet100),
-                            SizedBox(width: 6),
-                            Text('Import',
-                                style: TextStyle(
-                                    color: AppColors.violet100,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14)),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 onTap: () {

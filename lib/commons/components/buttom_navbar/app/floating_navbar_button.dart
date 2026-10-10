@@ -98,11 +98,12 @@ class FloatingActionButtonWidget extends StatelessWidget {
         return Stack(
           children: [
             action('Income', AppIcons.incomeIcon, AppColors.green100,
-                '/income', -88, 0),
+                '/income', -112, 0),
             action('Expense', AppIcons.expenseIcon, AppColors.red100,
-                '/expenses', 88, 0),
+                '/expenses', 112, 0),
             action('Transfer', AppIcons.currencyExchangeIcon, AppColors.blue100,
-                '/transfer', 0, 84),
+                '/transfer', -50, 88),
+            action('Import', AppIcons.downloadIcon, AppColors.violet80, '/import', 50, 88),
             // close button drawn over the real + button
             Positioned(
               bottom: fabBottom,
